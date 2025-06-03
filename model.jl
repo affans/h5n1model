@@ -95,10 +95,9 @@ function init_households()
 
     # we have these IDs separated because the initialized population is not randomized
     children_ids = shuffle!(collect(1:32250)) # children are 0-17 years old, adults are 18+ years old
-    children_idx = 1
     adult_ids = shuffle!(collect(32250:POPSIZE))
+    children_idx = 1
     adult_idx = 1
-    
     # configuration options for each house of different sizes. Each tuple is (num_adults, num_children)
     comp_options = @SVector [[(1, 0)], 
                     [(1, 1), (2, 0)],
@@ -111,18 +110,18 @@ function init_households()
         
         # see which configuration works best. for each config, we need to check if we have enough adults and children 
         all_options = comp_options[size_code] # get the options for this size codecomp_options
-        feasible_options = Vector{Tuple{Int64, Int64}}() # empty vector to store feasible options
-        for o in all_options
-            # for this option, do we have enough adults and children?
-            # e.g. for (3, 1), we need 3 adults and 1 child 
+        viable = false 
+        local o
+        while !viable
+            o = rand(all_options)
             if length(adult_ids) >= o[1] && length(children_ids) >= o[2]
-                push!(feasible_options, o) # push the feasible option in the array
+                viable = true
             end
         end
-        selected_option = rand(feasible_options) # randomly select one of the feasible options
-        num_adults, num_children = selected_option # splat the tuple
+        num_adults, num_children = o # splat the tuple
         selected_adults = poplast!(adult_ids, num_adults) 
         selected_children = poplast!(children_ids, num_children)
+     
         for h in selected_children
             humans[h].hid = house_id
         end
@@ -141,4 +140,4 @@ function init_households()
     # run error checks 
     #household_errorchecks()
     return 
-end
+end 
