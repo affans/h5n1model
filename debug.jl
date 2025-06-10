@@ -15,7 +15,7 @@ function dbg_household()
     # no one should be without a house 
     for h in humans
         if h.hid == 0
-            @error "Human $(h.id) has no house assigned!"
+            @error "Human $(h.idx) has no house assigned!"
         end
     end
     @info "Household error checks passed. All individuals are assigned to a house"
