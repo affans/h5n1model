@@ -271,23 +271,19 @@ function insert_infection(num_infections)
 end
 
 ### TIME STEP FUNCTIONS
-function time_loop(;calibrate = false)
-    # initialize the model
-    init_model()
-    insert_infection(1)
-
+function time_loop()
     # data collection 
-    incidence = zeros(Int64, 365) # incidence per day
-
+    incidence = @MVector zeros(Int64, 365) # incidence per day
     for t in Base.OneTo(365) 
         total_meet = 0 
         total_infect = 0 
         for x in humans
+            iso_dynamics(x) # check if the individual needs to be isolated or not (before natural history) 
             natural_history(x) # move through the natural history of the disease first         
-            tm, ti = transmission_with_contacts!(x, will_meet)
+            tm, ti = transmission_with_contacts!(x)
             total_meet += tm # add the number of contacts
             total_infect += ti # add the number of infections
-            activate_swaps(x)
+            activate_swaps(x) # essentially "midnight"
         end
         incidence[t] = total_infect # store the incidence for the day
     end
@@ -297,14 +293,14 @@ end
 function calibrate(beta) 
     # initialize the model
     p.beta = beta
-    init()
+    init_model()
     init_infect_id = insert_infection(1)[1] # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st
     display(x)
     for t in 1:max_inf_time
-        natural_history(x) # move through the natural history of the disease first         
-        tm, ti = transmission_with_contacts!(x, will_meet)
+        natural_history(x) # move through the natural history of the disease first
+        tm, ti = transmission_with_contacts!(x)
         @info "End Day $(t): $(x.idx), tis: $(x.tis), st: $(x.st), swap: $(x.swap)  met $(tm) , infected $(ti) ."
         activate_swaps(x)
     end
@@ -332,6 +328,17 @@ function natural_history(x::Human)
     return will_swap
 end
 
+function is_infectious(x::Human)
+    return x.inf ∈ (SYMP, ASYMP)
+end
+
+function iso_dynamics(x::Human)
+    if x.inf == SYMP && x.tis == 0 # if symptomatic and not isolated
+        # to do
+    end
+    return
+end
+
 function activate_swaps(x::Human)
     if x.swap ≠ UNDEF
         x.tis = 0  # reset time in state
@@ -340,7 +347,7 @@ function activate_swaps(x::Human)
             x.st = round(Int64, rand(EXP_PERIOD)) # set the incubation period
         elseif x.swap == ASYMP
             x.inf = ASYMP # swap to asymptomatic
-            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
+            x.st = round(Int64, rand(INF_PERIOD)&&) # set the infection period
         elseif x.swap == SYMP
             x.inf = SYMP # swap to symptomatic
             x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
@@ -353,8 +360,8 @@ function activate_swaps(x::Human)
     return
 end
 
-transmission_with_contacts!(idx::Int64, will_meet) = transmission_with_contacts(humans[idx], will_meet)
-function transmission_with_contacts!(x::Human, will_meet)
+transmission_with_contacts!(idx::Int64) = transmission_with_contacts(humans[idx])
+function transmission_with_contacts!(x::Human)
     # This is an allocation free method to get daily contacts for an individual
     # for each contact, we check for transmission right away to avoid allocating 
     # however, the flag on the global will_meet will set to true for each contact
@@ -371,12 +378,14 @@ function transmission_with_contacts!(x::Human, will_meet)
     # household contacts
     for idx in HOUSEHOLD_MEMBERS[house_id]
         will_meet[idx] = true # mark the household member as will meet (in case needed later)
-        total_infect += check_for_transmission(x, humans[idx]) # check for transmission
+        total_infect += check_for_transmission(x, humans[idx], p.beta) # check for transmission
         total_meet += 1
     end
 
+    # if the individual is isolated, return
+    x.iso && return (total_meet, total_infect) 
     # farm contacts
-    if farm_id > 0
+    if farm_id > 0 # if the individual is a farm worker and not isolated
         all_workers = shuffle!(FARM_WORKERS[farm_id]) # get the farm workers for this individual
         num_contact_farm = min(length(all_workers), rand(F1[age_group])) # sample number contacts with farm workers 
         sampled_workers = @view all_workers[1:num_contact_farm] # take the first num_contact_farm workers since they are shuffled
@@ -384,12 +393,12 @@ function transmission_with_contacts!(x::Human, will_meet)
         for idx in sampled_workers
             #@info "Farmer $(x.idx) will meet farm worker $(idx)." 
             will_meet[idx] = true # mark the worker as will meet
-            total_infect += check_for_transmission(x, humans[idx]) # check for transmission
+            total_infect += check_for_transmission(x, humans[idx], p.beta) # check for transmission
             total_meet += 1
         end
     end
 
-    # community contacts
+    # # community contacts
     if farm_id > 0
         num_contact_community = rand(F2[age_group]) # sample number of contacts with community individuals
         contact_distr = P2[age_group] # distribution of contacts, allocates
@@ -402,7 +411,7 @@ function transmission_with_contacts!(x::Human, will_meet)
         k = rand(contact_distr) # sample the age group for contacts
         idx = rand(AGE_BUCKETS[k]) # sample a random person from the age bucket for that age group
         will_meet[idx] = true # mark the individual in the age group as will meet
-        total_infect += check_for_transmission(x, humans[idx]) # check for transmission
+        total_infect += check_for_transmission(x, humans[idx], p.beta) # check for transmission
         total_meet += 1
         #@info "Farmer $(x.idx) will meet community individual $(idx) from age group $(k)."
     end
@@ -410,10 +419,10 @@ function transmission_with_contacts!(x::Human, will_meet)
     return total_meet,total_infect
 end
 
-function check_for_transmission(x::Human, y::Human)
+function check_for_transmission(x::Human, y::Human, beta)
     infect = 0
     if y.inf == SUS # if the individual is susceptible
-        if rand() < p.beta # check if transmission occurs
+        if rand() < beta # check if transmission occurs
             y.swap = EXP # swap to incubating
             infect = 1
         end
