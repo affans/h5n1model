@@ -20,7 +20,7 @@ function run_calibration()
     @info "Total number of processors: $(nprocs())"
     @info "Running calibration from process $(myid())"
     betavals = [0.015, 0.02, 0.025, 0.04, 0.05]
-    cd = pmap(1:500) do x
+    cd = pmap(1:1000) do x
         # @info "Starting simulation $x on host $(gethostname()), id: $(myid())"
         # flush(stdout)
         total_infect = calibrate(0.02)
@@ -29,13 +29,15 @@ function run_calibration()
     @info "Total infected individuals: $(sum(cd))"
     @info "Average infected individuals: $(mean(cd))"
     return cd
+    # after calibration
+    # Ro 1.2 => beta = 0.02
 end
 
-function run_sims() 
+function run_sims(iso_day, beta) 
     @info "Total number of processors: $(nprocs())"
     @info "Running sims from process $(myid())"
     cd = pmap(1:500) do x
-        ihouse, ifarm, icomm = time_loop(beta=0.02)
+        ihouse, ifarm, icomm = time_loop(;iso_day = iso_day, beta=beta)
         itotal = ihouse + ifarm + icomm
         return itotal
     end

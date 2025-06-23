@@ -1,4 +1,7 @@
-using StatsBase, Random, Distributions, DelimitedFiles
+using StatsBase
+using Random
+using Distributions
+using DelimitedFiles
 using StaticArrays
 
 # make sure the order doesn't change
@@ -306,7 +309,7 @@ function natural_history(x::Human)
         will_swap = true
         x.inf ∈ (SUS, REC) && error("SUS/REC state can not expire")
         if x.inf == EXP # if p
-            if rand() < 0.5 #0.03
+            if rand() < 0.03 #0.03
                 x.swap = ASYMP # 3% of incubating individuals become asymptomatic
             else
                 x.swap = SYMP # 97% of incubating individuals become symptomatic
@@ -324,7 +327,7 @@ function is_infectious(x::Human)
 end
 
 @inline function iso_dynamics(x::Human, iso_day)
-    (x.inf == SYMP && x.tis == iso_day) && (x.iso = true)
+    (x.inf == SYMP && x.tis == iso_day && rand() < 0.90) && (x.iso = true)
 end
 
 function activate_swaps(x::Human)

@@ -1,7 +1,5 @@
 # Summary and Debug Functions 
 # remove packages if not needed for final version
-using UnicodePlots 
-
 function dbg_household() 
     house_ids = create_houseids()
     # all houseIDs should be used (i.e., every house should have at least one person)
@@ -63,7 +61,7 @@ function dbg_household()
         end
     end
     result = map(mean, values(dict))
-    histogram(result, nbins=100, vertical=true)
+    #histogram(result, nbins=100, vertical=true)
     #return dict
     #for hid in house_ids
     #     housecomp = findall(x -> x.hid == hid && x.age >= 18, humans)
