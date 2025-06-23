@@ -23,10 +23,9 @@ end
 Base.show(io::IO, ::MIME"text/plain", z::Human) = dump(z)
 
 ## system parameters
-Base.@kwdef mutable struct ModelParameters
-    flag_init = false # flag to indicate if the model is initialized
-    beta = 0.01 # transmission rate
-end
+# Base.@kwdef mutable struct ModelParameters
+#     flag_init = false # flag to indicate if the model is initialized
+# end
 
 include("helpers.jl") # include the helper functions
 include("debug.jl")
@@ -34,7 +33,7 @@ include("debug.jl")
 # constant variables
 const POPSIZE = 153565
 const humans = Array{Human}(undef, POPSIZE)
-const p = ModelParameters()  ## setup default parameters
+#const p = ModelParameters()  ## setup default parameters
 const AGE_BUCKETS = Dict{Int64,Vector{Int64}}() # key is age group index, value is vector of human indices in that age group
 const HOUSEHOLD_MEMBERS = Dict{Int64,Vector{Int64}}() # key is household ID, value is vector of human indices in that household
 const FARM_WORKERS = Dict{Int64,Vector{Int64}}() # key is farm ID, value is vector of human indices in that farm
@@ -42,8 +41,7 @@ const INF_PERIOD = Gamma(3.2949, 2.7314)
 const EXP_PERIOD = Weibull(2.3015, 3.7242) # incubation period
 const will_meet = falses(POPSIZE) # array to mark who will meet whom
 
-init_state() = init_state(ModelParameters())
-function init_state(ip::ModelParameters)
+function init_state()
     # the p is a global const
     # the ip is an incoming different instance of parameters 
     # copy the values from ip to p. 
@@ -53,8 +51,6 @@ function init_state(ip::ModelParameters)
     # end
     # resize the human array to change population size
     #resize!(humans, POPSIZE)
-    
-    #@info "Model initialized with $(POPSIZE) individuals."
     return
 end
 
@@ -88,7 +84,6 @@ function init_agents(simid)
     empty!(FARM_WORKERS) # clear the FARM_WORKERS dictionary
 
     populate_age_dict() 
-    p.flag_init = true # set the flag to true
     return
 end
 
@@ -102,9 +97,9 @@ function populate_age_dict()
 end
 
 function init_households2()
-    if !p.flag_init
-        error("Model is not initialized. Call init_state() first.")
-    end
+    # if !p.flag_init
+    #     error("Model is not initialized. Call init_state() first.")
+    # end
 
     house_ids = create_houseids()
     
@@ -193,10 +188,6 @@ function populate_household_dict()
 end
 
 function init_farming()
-    if !p.flag_init
-        @error "Model is not initialized. Call init_state() first."
-    end
-
     NUM_FARMS = @SVector [131, 85, 28, 12, 3] # number of farms
     EMP_FARMS = @SVector [1:4, 5:9, 10:19, 20:49, 50:99] # number of employees per farm
     total_farms = sum(NUM_FARMS) # total number of farms
@@ -253,59 +244,59 @@ function init_farming()
     return
 end
 
-function insert_infection(num_infections)
-    if !p.flag_init
-        error("Model is not initialized. Call init_state() first.")
-    end
-    if num_infections <= 0 || num_infections > POPSIZE
-        error("Number of infections must be between 1 and $(POPSIZE).")
-    end
-    human_idx = shuffle(1:POPSIZE)# get indices of all humans that are susceptible
-    infected_indices = sample(human_idx, num_infections) # sample random indices for infections
-    for idx in infected_indices
-        humans[idx].swap = SYMP # set the infection status to symptomatic
-        activate_swaps(humans[idx]) # activate the swap to symptomatic
-    end
-
-    return infected_indices # return the indices of infected individuals
+function insert_infection()
+    farm = rand(keys(FARM_WORKERS))
+    idx = rand(FARM_WORKERS[farm]) # sample a random farm worker
+    x = humans[idx] # get the human object
+    x.swap = SYMP
+    activate_swaps(x) # activate the swap to symptomatic
+    return idx # return the indices of infected individuals
 end
 
 ### TIME STEP FUNCTIONS
-function time_loop()
+time_loop() = time_loop(iso_day = 0, beta = 0.0)
+function time_loop(;iso_day=-1, beta=0.0)
+    init_model()
+    insert_infection() # insert an infection in the farm
+    
     # data collection 
-    incidence = @MVector zeros(Int64, 365) # incidence per day
+    incidence_hh = zeros(Int64, 365) # incidence per day in household
+    incidence_fm = zeros(Int64, 365) # incidence per day in farm
+    incidence_cm = zeros(Int64, 365) # incidence per day in comm
+
     for t in Base.OneTo(365) 
-        total_meet = 0 
-        total_infect = 0 
         for x in humans
-            iso_dynamics(x) # check if the individual needs to be isolated or not (before natural history) 
+            iso_dynamics(x, iso_day) # check if the individual needs to be isolated or not (before natural history) 
             natural_history(x) # move through the natural history of the disease first         
-            tm, ti = transmission_with_contacts!(x)
-            total_meet += tm # add the number of contacts
-            total_infect += ti # add the number of infections
+            tm, tih, tif, tic = transmission_with_contacts!(x, beta)
+            incidence_cm[t] += tic # add the community incidence
+            incidence_fm[t] += tif # add the farm incidence
+            incidence_hh[t] += tih # add the household incidence
+            
             activate_swaps(x) # essentially "midnight"
         end
-        incidence[t] = total_infect # store the incidence for the day
     end
-    return incidence
+    return incidence_hh, incidence_fm, incidence_cm
 end
 
 function calibrate(beta) 
     # initialize the model
-    p.beta = beta
     init_model()
-    init_infect_id = insert_infection(1)[1] # get the first infected individual
+    init_infect_id = insert_infection() # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
-    max_inf_time = x.st
-    display(x)
+    max_inf_time = x.st + 1
+    total_infected = 0 
+    @debug display(x)
     for t in 1:max_inf_time
         natural_history(x) # move through the natural history of the disease first
-        tm, ti = transmission_with_contacts!(x)
-        @info "End Day $(t): $(x.idx), tis: $(x.tis), st: $(x.st), swap: $(x.swap)  met $(tm) , infected $(ti) ."
+        tm, tih, tif, tic = transmission_with_contacts!(x, beta)
+        total_infected += (tih + tif + tic) # count the total infected individuals
+        @debug "End Day $(t): tis: $(x.tis), st: $(x.st), swap: $(x.swap)  met $(tm), inf total: $(total_infected), inf hh $(tih), inf farm $(tif), inf comm $(tic)."
         activate_swaps(x)
     end
-    @info "Time end: $(x.idx), tis: $(x.tis), st: $(x.st), swap: $(x.swap), st: $(x.st)"
-    return
+    @debug "Time end: $(x.idx), tis: $(x.tis), st: $(x.st), swap: $(x.swap), st: $(x.st)"
+    @debug "Total infected: $(total_infected) individuals."
+    return total_infected
 end
 
 function natural_history(x::Human)
@@ -315,7 +306,7 @@ function natural_history(x::Human)
         will_swap = true
         x.inf ∈ (SUS, REC) && error("SUS/REC state can not expire")
         if x.inf == EXP # if p
-            if rand() < 0.03
+            if rand() < 0.5 #0.03
                 x.swap = ASYMP # 3% of incubating individuals become asymptomatic
             else
                 x.swap = SYMP # 97% of incubating individuals become symptomatic
@@ -332,11 +323,8 @@ function is_infectious(x::Human)
     return x.inf ∈ (SYMP, ASYMP)
 end
 
-function iso_dynamics(x::Human)
-    if x.inf == SYMP && x.tis == 0 # if symptomatic and not isolated
-        # to do
-    end
-    return
+@inline function iso_dynamics(x::Human, iso_day)
+    (x.inf == SYMP && x.tis == iso_day) && (x.iso = true)
 end
 
 function activate_swaps(x::Human)
@@ -347,7 +335,7 @@ function activate_swaps(x::Human)
             x.st = round(Int64, rand(EXP_PERIOD)) # set the incubation period
         elseif x.swap == ASYMP
             x.inf = ASYMP # swap to asymptomatic
-            x.st = round(Int64, rand(INF_PERIOD)&&) # set the infection period
+            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
         elseif x.swap == SYMP
             x.inf = SYMP # swap to symptomatic
             x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
@@ -360,40 +348,49 @@ function activate_swaps(x::Human)
     return
 end
 
-transmission_with_contacts!(idx::Int64) = transmission_with_contacts(humans[idx])
-function transmission_with_contacts!(x::Human)
+transmission_with_contacts!(idx::Int64, beta) = transmission_with_contacts(humans[idx], beta)
+function transmission_with_contacts!(x::Human, beta)
     # This is an allocation free method to get daily contacts for an individual
     # for each contact, we check for transmission right away to avoid allocating 
     # however, the flag on the global will_meet will set to true for each contact
     # (which would reset for the next infected individual)
-    !(x.inf ∈ (ASYMP, SYMP)) && return (0, 0) # if the individual is not infected, return 0 contacts and 0 infections
+    !(x.inf ∈ (ASYMP, SYMP)) && return (0, 0, 0, 0) # if the individual is not infected, return 0 contacts and 0 infections
     
     farm_id = x.fid
     house_id = x.hid # get the household ID of the individual
     age_group = x.agegroup # get the age group of the individual
-    total_meet = 0
-    total_infect = 0 
-    will_meet .= false # reset the will meet array for this individual
+    
+    # counting variables
+    total_inf_household = 0
+    total_inf_farms = 0
+    total_inf_community = 0 
+    total_meet = 0 
+
+    # not sure if this is used anymore -- defined at the global level
+    # will_meet .= false # reset the will meet array for this individual
 
     # household contacts
     for idx in HOUSEHOLD_MEMBERS[house_id]
-        will_meet[idx] = true # mark the household member as will meet (in case needed later)
-        total_infect += check_for_transmission(x, humans[idx], p.beta) # check for transmission
+        # will_meet[idx] = true # mark the household member as will meet (in case needed later)
+        total_inf_household += check_for_transmission(x, humans[idx], beta) # check for transmission
         total_meet += 1
     end
-
+    
     # if the individual is isolated, return
-    x.iso && return (total_meet, total_infect) 
+    if x.iso 
+        return total_meet, total_inf_household, total_inf_farms, total_inf_community
+    end
+
     # farm contacts
     if farm_id > 0 # if the individual is a farm worker and not isolated
         all_workers = shuffle!(FARM_WORKERS[farm_id]) # get the farm workers for this individual
         num_contact_farm = min(length(all_workers), rand(F1[age_group])) # sample number contacts with farm workers 
         sampled_workers = @view all_workers[1:num_contact_farm] # take the first num_contact_farm workers since they are shuffled
-        #@info "Farmer $(x.idx) will meet $(num_contact_farm) farm workers."
+        #@debug "Farmer $(x.idx) will meet $(num_contact_farm) farm workers."
         for idx in sampled_workers
-            #@info "Farmer $(x.idx) will meet farm worker $(idx)." 
-            will_meet[idx] = true # mark the worker as will meet
-            total_infect += check_for_transmission(x, humans[idx], p.beta) # check for transmission
+            #@debug "Farmer $(x.idx) will meet farm worker $(idx)." 
+            # will_meet[idx] = true # mark the worker as will meet
+            total_inf_farms += check_for_transmission(x, humans[idx], beta) # check for transmission
             total_meet += 1
         end
     end
@@ -406,22 +403,21 @@ function transmission_with_contacts!(x::Human)
         num_contact_community = rand(F3[age_group]) # sample number of contacts with community individuals
         contact_distr = P3[age_group] # distribution of contacts
     end
-    #@info "Farmer $(x.idx) will meet $(num_contact_community) community individuals."
+    #@debug "Farmer $(x.idx) will meet $(num_contact_community) community individuals."
     for i in Base.OneTo(num_contact_community) # go through each contact
         k = rand(contact_distr) # sample the age group for contacts
         idx = rand(AGE_BUCKETS[k]) # sample a random person from the age bucket for that age group
-        will_meet[idx] = true # mark the individual in the age group as will meet
-        total_infect += check_for_transmission(x, humans[idx], p.beta) # check for transmission
+        # will_meet[idx] = true # mark the individual in the age group as will meet
+        total_inf_community += check_for_transmission(x, humans[idx], beta) # check for transmission
         total_meet += 1
-        #@info "Farmer $(x.idx) will meet community individual $(idx) from age group $(k)."
+        #@debug "Farmer $(x.idx) will meet community individual $(idx) from age group $(k)."
     end
-
-    return total_meet,total_infect
+    return total_meet, total_inf_household,  total_inf_farms, total_inf_community # return the total number of contacts and infections
 end
 
 function check_for_transmission(x::Human, y::Human, beta)
     infect = 0
-    if y.inf == SUS # if the individual is susceptible
+    if y.inf == SUS && y.swap == UNDEF # if the individual is susceptible
         if rand() < beta # check if transmission occurs
             y.swap = EXP # swap to incubating
             infect = 1

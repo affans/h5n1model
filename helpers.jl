@@ -3,7 +3,7 @@ function init_model()
     init_agents()
     init_households2()
     init_farming()
-    @info "Model initialized."
+    @debug "Model initialized."
 end
 
 function create_houseids()
@@ -60,72 +60,76 @@ const F1 = @SVector [
     NegativeBinomial(0.0100000000, 0.06317366633), ## will not be used
     NegativeBinomial(0.0100000000, 0.06317366633), ## will not be used
     NegativeBinomial(0.0100000000, 0.06317366633), ## will not be used
-    NegativeBinomial(0.4100657129, 0.06317366633),
-    NegativeBinomial(0.4986691497, 0.06317366633),
-    NegativeBinomial(0.4960845091, 0.06317366633),
-    NegativeBinomial(0.4574002545, 0.06317366633),
-    NegativeBinomial(0.4888697988, 0.06317366633),
-    NegativeBinomial(0.4868381187, 0.06317366633),
-    NegativeBinomial(0.4228949203, 0.06317366633),
-    NegativeBinomial(0.3142211368, 0.06317366633),
-    NegativeBinomial(0.1538519571, 0.06317366633),
-    NegativeBinomial(0.0777294191, 0.06317366633),
-    NegativeBinomial(0.01607343115, 0.06317366633),
-    NegativeBinomial(0.03248118904, 0.06317366633),
-    NegativeBinomial(0.002667172307, 0.06317366633)
+    NegativeBinomial(1.187694257, 0.1633981111),
+    NegativeBinomial(1.394465841, 0.1586527642),
+    NegativeBinomial(1.558780229, 0.1748411908),
+    NegativeBinomial(1.430978535, 0.1742133948),
+    NegativeBinomial(1.170066711, 0.1389676949),
+    NegativeBinomial(1.165204064, 0.1389676949),
+    NegativeBinomial(1.054874243, 0.1439876496),
+    NegativeBinomial(0.9672436716, 0.1718948873),
+    NegativeBinomial(0.6923976042, 0.232822678),
+    NegativeBinomial(0.3955447194, 0.2554829004),
+    NegativeBinomial(0.1134947043, 0.3225621743),
+    NegativeBinomial(0.2443440758, 0.3365528229),
+    NegativeBinomial(0.02440799928, 0.3816104412)
 ]
+
 
 # Distribution for number of contacts for FARMER with COMMUNITY
 # The index of each element represents the age group (from 1 to 17 - see `get_age_bucket`)
 const F2 = @SVector [
-    NegativeBinomial(0.0100000000, 0.06317366633)
-    NegativeBinomial(0.0100000000, 0.06317366633)
-    NegativeBinomial(0.0100000000, 0.06317366633)
-    NegativeBinomial(0.0100000000, 0.06317366633)
-    NegativeBinomial(0.1159877078, 0.06317366633)
-    NegativeBinomial(0.08025125662, 0.06317366633)
-    NegativeBinomial(0.09188705118, 0.06317366633)
-    NegativeBinomial(0.1038296935, 0.06317366633)
-    NegativeBinomial(0.112361848, 0.06317366633)
-    NegativeBinomial(0.09670386132, 0.06317366633)
-    NegativeBinomial(0.08797526275, 0.06317366633)
-    NegativeBinomial(0.1321105821, 0.06317366633)
-    NegativeBinomial(0.1166956399, 0.06317366633)
-    NegativeBinomial(0.1596083465, 0.06317366633)
-    NegativeBinomial(0.1560238929, 0.06317366633)
-    NegativeBinomial(0.13914591, 0.06317366633)
-    NegativeBinomial(0.1290140386, 0.06317366633)
+    NegativeBinomial(0.0100000000, 0.06317366633), ## will not be used
+    NegativeBinomial(0.0100000000, 0.06317366633), ## will not be used
+    NegativeBinomial(0.0100000000, 0.06317366633), ## will not be used
+    NegativeBinomial(0.0100000000, 0.06317366633), ## will not be used
+    NegativeBinomial(0.3359411191, 0.1633981111),
+    NegativeBinomial(0.2244125912, 0.1586527642),
+    NegativeBinomial(0.2887244332, 0.1748411908),
+    NegativeBinomial(0.3248316133, 0.1742133948),
+    NegativeBinomial(0.2689281652, 0.1389676949),
+    NegativeBinomial(0.2314521561, 0.1389676949),
+    NegativeBinomial(0.2194465676, 0.1439876496),
+    NegativeBinomial(0.4066662282, 0.1718948873),
+    NegativeBinomial(0.5251787696, 0.232822678),
+    NegativeBinomial(0.8122052032, 0.2554829004),
+    NegativeBinomial(1.101686717, 0.3225621743),
+    NegativeBinomial(1.046743663, 0.3365528229),
+    NegativeBinomial(1.180641593, 0.3816104412)
 ]
+
+
+
 
 # Distribution for number of contacts for General
 # The index of each element represents the age group (from 1 to 17 - see `get_age_bucket`)
 const F3 = @SVector [
-    NegativeBinomial(0.81910, 0.22050)
-    NegativeBinomial(1.37689, 0.22050)
-    NegativeBinomial(1.78407, 0.22050)
-    NegativeBinomial(1.76630, 0.22050)
-    NegativeBinomial(2.17613, 0.22050)
-    NegativeBinomial(2.30302, 0.22050)
-    NegativeBinomial(2.50068, 0.22050)
-    NegativeBinomial(2.41908, 0.22050)
-    NegativeBinomial(2.62971, 0.22050)
-    NegativeBinomial(2.68517, 0.22050)
-    NegativeBinomial(2.30719, 0.22050)
-    NegativeBinomial(1.83136, 0.22050)
-    NegativeBinomial(1.10194, 0.22050)
-    NegativeBinomial(0.94041, 0.22050)
-    NegativeBinomial(0.71094, 0.22050)
-    NegativeBinomial(0.72153, 0.22050)
-    NegativeBinomial(0.55080, 0.22050)
+    NegativeBinomial(0.99406, 0.25556), 
+    NegativeBinomial(1.50982, 0.23675),
+    NegativeBinomial(1.75702, 0.21788),
+    NegativeBinomial(1.84065, 0.22767),
+    NegativeBinomial(1.50252, 0.16340),
+    NegativeBinomial(1.53524, 0.15865),
+    NegativeBinomial(1.87315, 0.17484),
+    NegativeBinomial(1.80414, 0.17421),
+    NegativeBinomial(1.50041, 0.13897),
+    NegativeBinomial(1.53205, 0.13897),
+    NegativeBinomial(1.37195, 0.14399),
+    NegativeBinomial(1.34388, 0.17189),
+    NegativeBinomial(1.18221, 0.23282),
+    NegativeBinomial(1.14081, 0.25548),
+    NegativeBinomial(1.19670, 0.32256),
+    NegativeBinomial(1.29392, 0.33655),
+    NegativeBinomial(1.20159, 0.38161)
 ]
 
 # Distribution of Who meets Who for FARMER at COMMUNITY
 # The index of each element represents the age group (from 1 to 17 - see `get_age_bucket`)
 const P2 = @SVector [
-    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), ## will not be used
+    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), ## will not be used
+    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), ## will not be used
+    Categorical([1.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), ## will not be used
     Categorical([0.0006, 0.0028, 0.0327, 0.0994, 0.2464, 0.1490, 0.0970, 0.0540, 0.0788, 0.0781, 0.0403, 0.0436, 0.0298, 0.0231, 0.0079, 0.0131, 0.0034]),
     Categorical([0.0073, 0.0013, 0.0098, 0.0296, 0.1622, 0.2926, 0.1495, 0.0931, 0.0524, 0.0318, 0.0529, 0.0477, 0.0334, 0.0170, 0.0059, 0.0127, 0.0008]),
     Categorical([0.0294, 0.0066, 0.0207, 0.0380, 0.0591, 0.1763, 0.1785, 0.0988, 0.0718, 0.0893, 0.0709, 0.0798, 0.0346, 0.0270, 0.0136, 0.0025, 0.0031]),
