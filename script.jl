@@ -33,11 +33,11 @@ function run_calibration()
     # Ro 1.2 => beta = 0.02
 end
 
-function run_sims(iso_day, beta) 
+function run_sims(beta, iso_day, iso_prop) 
     @info "Total number of processors: $(nprocs())"
     @info "Running sims from process $(myid())"
     cd = pmap(1:500) do x
-        ihouse, ifarm, icomm = time_loop(;iso_day = iso_day, beta=beta)
+        ihouse, ifarm, icomm = time_loop(;beta=beta, iso_day = iso_day, iso_prop = iso_prop)
         itotal = ihouse + ifarm + icomm
         return itotal
     end

@@ -257,8 +257,8 @@ function insert_infection()
 end
 
 ### TIME STEP FUNCTIONS
-time_loop() = time_loop(iso_day = 0, beta = 0.0)
-function time_loop(;iso_day=-1, beta=0.0)
+time_loop() = time_loop(beta = 0.0, iso_day = 0, iso_prop = 0.0)
+function time_loop(;beta=0.0, iso_day=-1, iso_prop=0.0)
     init_model()
     insert_infection() # insert an infection in the farm
     
@@ -269,7 +269,7 @@ function time_loop(;iso_day=-1, beta=0.0)
 
     for t in Base.OneTo(365) 
         for x in humans
-            iso_dynamics(x, iso_day) # check if the individual needs to be isolated or not (before natural history) 
+            iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
             natural_history(x) # move through the natural history of the disease first         
             tm, tih, tif, tic = transmission_with_contacts!(x, beta)
             incidence_cm[t] += tic # add the community incidence
@@ -326,8 +326,8 @@ function is_infectious(x::Human)
     return x.inf ∈ (SYMP, ASYMP)
 end
 
-@inline function iso_dynamics(x::Human, iso_day)
-    (x.inf == SYMP && x.tis == iso_day && rand() < 0.90) && (x.iso = true)
+@inline function iso_dynamics(x::Human, iso_day, iso_prop)
+    (x.inf == SYMP && x.tis == iso_day && rand() < iso_prop) && (x.iso = true)
 end
 
 function activate_swaps(x::Human)
