@@ -6,6 +6,8 @@ using StaticArrays
 
 # make sure the order doesn't change
 @enum INFTYPE UNDEF = 0 SUS = 1 EXP = 2 ASYMP = 3 SYMP = 4 REC = 5 # infection status
+@enum VACSCN1 NONE FARMONLY FARM_AND_HH 
+@enum VACSCN2 A0 A1 A2 A3 A4 # vaccination scenarios, # A0 = No scenario 
 
 # define an agent and all agent properties
 Base.@kwdef mutable struct Human
@@ -18,8 +20,11 @@ Base.@kwdef mutable struct Human
     swap::INFTYPE = UNDEF # swap state
     tis::Int16 = 0 # time in state
     st::Int16 = typemax(Int16) # max time in state 
-    iso::Bool = false # isolation flag 
-    # vac::Int16 = 0 # dose count
+    iso::Bool = false # isolation flag
+    vaceff1::Float32 = 0.0 
+    vaceff2::Float32 = 0.0
+    totalinfect::Int64 = 0 # total number of infections this individual has had
+    timeofinfect::Int64 = 0 # time of infection
     # eff::Float64 = 0.0 # vaccine efficacy
     # exp::Int64 = 0 # waning time of vaccine
 end
@@ -205,13 +210,9 @@ function init_farming()
     # it's possible that doing it this way does not maintain the distribution per farm, but is maintained across all farms. 
     # The relevant age groups are 20-24, 25-34, 35-44, 45-54, 55-64, 65+
     # Sample each employees age group, which gives index from 1 to 6  
-
     PROB_EMP_AG = Categorical(@SVector [0.0375, 0.2375, 0.3250, 0.1875, 0.1250, 0.0875])
     agegroup_of_each_employee = rand(PROB_EMP_AG, total_employees)
 
-
-    #EMP_AG = @SVector [(20, 24), (25, 34), (35, 44), (45, 54), (55, 64), (65, 100)] # age groups
-    #indices_per_ag = [shuffle!(collect(get_ag_idx(i[1], i[2]))) for i in EMP_AG] 
     indices_per_ag = [
         mapfoldl(i -> AGE_BUCKETS[i], vcat, 5), # get the indices of humans in each age group
         mapfoldl(i -> AGE_BUCKETS[i], vcat, 6:7),
@@ -221,16 +222,17 @@ function init_farming()
         mapfoldl(i -> AGE_BUCKETS[i], vcat, 14:17),
     ] # get the indices of humans in each age group
 
-    # Sample the worker IDs
-    sampled_worker_ids = rand.(indices_per_ag[agegroup_of_each_employee])  # ag is array, where each element is an array of indices
+    how_many_each_ag = countmap(agegroup_of_each_employee)
+    sampled_worker_ids = zeros(Int64, total_employees) # array to hold the sampled worker IDs
 
-    # Total farms: 259
-    # Total employees needed: 1924
-    # Selected unique employees: 1907
-    # The reason why we have 1907 employees is because some 
-    # employees are selected multiple times due to the random sampling from the age groups.
-    # It's too much complexity to ensure that each employee is unique,
-    # it doesn't matter because we could've just sampled '1907' total employees to begin with
+    a1 = sample(indices_per_ag[1], how_many_each_ag[1], replace=false) 
+    a2 = sample(indices_per_ag[2], how_many_each_ag[2], replace=false)
+    a3 = sample(indices_per_ag[3], how_many_each_ag[3], replace=false)
+    a4 = sample(indices_per_ag[4], how_many_each_ag[4], replace=false)
+    a5 = sample(indices_per_ag[5], how_many_each_ag[5], replace=false)
+    a6 = sample(indices_per_ag[6], how_many_each_ag[6], replace=false)
+    sampled_worker_ids = reduce(vcat, [a1, a2, a3, a4, a5, a6]) # concatenate the arrays into a single array
+    #sampled_worker_ids = rand.(indices_per_ag[agegroup_of_each_employee])  # ag is array, where each element is an array of indices
 
     # Now we need to assign these sampled workers to farms 
     pos = 1 # position to see who isn't assigned yet from `sampled_worker_ids`
@@ -251,48 +253,67 @@ function insert_infection()
     farm = rand(keys(FARM_WORKERS))
     idx = rand(FARM_WORKERS[farm]) # sample a random farm worker
     x = humans[idx] # get the human object
+    x.timeofinfect = 1
     x.swap = SYMP
     activate_swaps(x) # activate the swap to symptomatic
     return idx # return the indices of infected individuals
 end
 
 ### TIME STEP FUNCTIONS
-time_loop() = time_loop(beta = 0.0, iso_day = 0, iso_prop = 0.0)
-function time_loop(;beta=0.0, iso_day=-1, iso_prop=0.0)
+function time_loop(;simid=1, 
+                    beta=0.0, 
+                    iso_day=-1, 
+                    iso_prop=0.0, 
+                    vac_scn1=NONE, 
+                    vac_scn2=A0,
+                    vac_cov=0.0
+                    )
+    Random.seed!(simid*293)
     init_model()
     insert_infection() # insert an infection in the farm
     
-    # data collection 
-    incidence_hh = zeros(Int64, 365) # incidence per day in household
-    incidence_fm = zeros(Int64, 365) # incidence per day in farm
-    incidence_cm = zeros(Int64, 365) # incidence per day in comm
+    # data collection variables
+    incidence_hh = zeros(Int64, max_time) # incidence per day in household
+    incidence_fm = zeros(Int64, max_time) # incidence per day in farm
+    incidence_cm = zeros(Int64, max_time) # incidence per day in comm
 
-    for t in Base.OneTo(365) 
-        for x in humans
+    for t in Base.OneTo(365)
+        for (i, x) in enumerate(humans)
             iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
             natural_history(x) # move through the natural history of the disease first         
-            tm, tih, tif, tic = transmission_with_contacts!(x, beta)
+            _, tih, tif, tic = transmission_with_contacts!(simid, t, x, beta)
+            activate_swaps(x) # essentially "midnight"
+            
+            # data collection 
             incidence_cm[t] += tic # add the community incidence
             incidence_fm[t] += tif # add the farm incidence
             incidence_hh[t] += tih # add the household incidence
-            
-            activate_swaps(x) # essentially "midnight"
+        end
+        
+        # vaccine init at 6 weeks later
+        if t == 42 && vac_scn1 != NONE # if it's the first month and we have a vaccination scenario 
+            @debug "Day $(t) of simulation $(simid)."
+            @debug "Vaccination scenario: $(vac_scn1), $(vac_scn2) with coverage: $(vac_cov)."
+            init_vac(simid, vac_scn1, vac_scn2, vac_cov)
         end
     end
-    return incidence_hh, incidence_fm, incidence_cm
+
+    # who infect who vector for  R-effective calculation.
+    who_infect_who = [(x.totalinfect, x.timeofinfect) for x in humans if x.inf == REC]
+    return incidence_hh, incidence_fm, incidence_cm, who_infect_who
 end
 
-function calibrate(beta) 
+function calibrate(beta; iso_day=-1, iso_prop=0.0, ) 
     # initialize the model
     init_model()
     init_infect_id = insert_infection() # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st + 1
     total_infected = 0 
-    @debug display(x)
     for t in 1:max_inf_time
+        iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
         natural_history(x) # move through the natural history of the disease first
-        tm, tih, tif, tic = transmission_with_contacts!(x, beta)
+        _, tih, tif, tic = transmission_with_contacts!(1, t, x, beta)
         total_infected += (tih + tif + tic) # count the total infected individuals
         @debug "End Day $(t): tis: $(x.tis), st: $(x.st), swap: $(x.swap)  met $(tm), inf total: $(total_infected), inf hh $(tih), inf farm $(tif), inf comm $(tic)."
         activate_swaps(x)
@@ -308,11 +329,12 @@ function natural_history(x::Human)
     if x.tis == x.st # move through nat history of disease
         will_swap = true
         x.inf ∈ (SUS, REC) && error("SUS/REC state can not expire")
-        if x.inf == EXP # if p
-            if rand() < 0.03 #0.03
-                x.swap = ASYMP # 3% of incubating individuals become asymptomatic
+        if x.inf == EXP 
+            prob_of_symp = 0.97 * (1.0 - x.vaceff2)
+            if rand() < prob_of_symp
+                x.swap = SYMP # swap to symptomatic
             else
-                x.swap = SYMP # 97% of incubating individuals become symptomatic
+                x.swap = ASYMP # 3% of incubating individuals become asymptomatic
             end
         end
         if x.inf ∈ (SYMP, ASYMP) # symptomatic or asymptomatic
@@ -338,10 +360,12 @@ function activate_swaps(x::Human)
             x.st = round(Int64, rand(EXP_PERIOD)) # set the incubation period
         elseif x.swap == ASYMP
             x.inf = ASYMP # swap to asymptomatic
-            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
+            inf_per = max(round(Int64, rand(INF_PERIOD)), 0)
+            x.st = round(Int64, inf_per) # set the infection period
         elseif x.swap == SYMP
             x.inf = SYMP # swap to symptomatic
-            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
+            inf_per = max(round(Int64, rand(INF_PERIOD)), 0)
+            x.st = round(Int64, inf_per) # set the infection period
         elseif x.swap == REC
             x.inf = REC # swap to recovered
             x.st = typemax(Int16) # set the recovery period to max
@@ -351,8 +375,50 @@ function activate_swaps(x::Human)
     return
 end
 
-transmission_with_contacts!(idx::Int64, beta) = transmission_with_contacts(humans[idx], beta)
-function transmission_with_contacts!(x::Human, beta)
+function init_vac(simid, scn1::VACSCN1, scn2::VACSCN2, coverage) 
+    # at 4 weeks from initial infection, 
+    # vaccinate (i) farm workers with some coverage, including their family members 
+    rng2 = MersenneTwister(simid + 2638)
+    if scn2 == A0 
+        eff1 = 0.0 # no protection against infection
+        eff2 = 0.0 # no additional protection for symptomatic disease
+    elseif scn2 == A1 
+        eff1 = 0.50 # 50% protection against infection
+        eff2 = 0.0 # no additional protection for symptomatic disease
+    elseif scn2 == A2
+        eff1 = 0.0 # 50% protection against infection
+        eff2 = 0.85 # 50% additional protection for symptomatic disease
+    elseif scn2 == A3
+        eff1 = 0.50 # no protection against infection
+        eff2 = 0.85 # 50% additional protection for symptomatic disease
+    end
+    
+    for (k, v) in FARM_WORKERS
+        if rand(rng2) < coverage
+            for idx in v
+                x = humans[idx]
+                if scn1 == FARMONLY 
+                    x.vaceff1 = eff1 # mark the individual as vaccinated
+                    x.vaceff2 = eff2
+                elseif scn1 == FARM_AND_HH
+                    hh = HOUSEHOLD_MEMBERS[x.hid] # get the household members of the farm worker 
+                    for hidx in hh
+                        y = humans[hidx] # get the household member
+                        if y.age >= 1
+                            y.vaceff1 = eff1 # mark the individual as vaccinated
+                            y.vaceff2 = eff2
+                        end
+                    end
+                end
+            end 
+        end
+    end
+    # since this uses random numbers in the middle of the simulation, we need to reset the random number generator
+    return
+end
+
+@enum BETA_REDUC_TYPE BR_HH BR_FARM BR_COMM # beta reduction types
+function transmission_with_contacts!(simid, time, x::Human, beta)
     # This is an allocation free method to get daily contacts for an individual
     # for each contact, we check for transmission right away to avoid allocating 
     # however, the flag on the global will_meet will set to true for each contact
@@ -375,7 +441,7 @@ function transmission_with_contacts!(x::Human, beta)
     # household contacts
     for idx in HOUSEHOLD_MEMBERS[house_id]
         # will_meet[idx] = true # mark the household member as will meet (in case needed later)
-        total_inf_household += check_for_transmission(x, humans[idx], beta) # check for transmission
+        total_inf_household += check_for_transmission(time, x, humans[idx], beta, BR_HH) # check for transmission
         total_meet += 1
     end
     
@@ -393,12 +459,12 @@ function transmission_with_contacts!(x::Human, beta)
         for idx in sampled_workers
             #@debug "Farmer $(x.idx) will meet farm worker $(idx)." 
             # will_meet[idx] = true # mark the worker as will meet
-            total_inf_farms += check_for_transmission(x, humans[idx], beta) # check for transmission
+            total_inf_farms += check_for_transmission(time, x, humans[idx], beta, BR_FARM) # check for transmission
             total_meet += 1
         end
     end
 
-    # # community contacts
+    # community contacts
     if farm_id > 0
         num_contact_community = rand(F2[age_group]) # sample number of contacts with community individuals
         contact_distr = P2[age_group] # distribution of contacts, allocates
@@ -406,22 +472,39 @@ function transmission_with_contacts!(x::Human, beta)
         num_contact_community = rand(F3[age_group]) # sample number of contacts with community individuals
         contact_distr = P3[age_group] # distribution of contacts
     end
-    #@debug "Farmer $(x.idx) will meet $(num_contact_community) community individuals."
     for i in Base.OneTo(num_contact_community) # go through each contact
         k = rand(contact_distr) # sample the age group for contacts
         idx = rand(AGE_BUCKETS[k]) # sample a random person from the age bucket for that age group
         # will_meet[idx] = true # mark the individual in the age group as will meet
-        total_inf_community += check_for_transmission(x, humans[idx], beta) # check for transmission
+        total_inf_community += check_for_transmission(time, x, humans[idx], beta, BR_COMM) # check for transmission
         total_meet += 1
         #@debug "Farmer $(x.idx) will meet community individual $(idx) from age group $(k)."
     end
-    return total_meet, total_inf_household,  total_inf_farms, total_inf_community # return the total number of contacts and infections
+  
+    return total_meet, total_inf_household, total_inf_farms, total_inf_community # return the total number of contacts and infections
 end
 
-function check_for_transmission(x::Human, y::Human, beta)
+function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_TYPE)
     infect = 0
+    effbeta = beta
+    if br == BR_HH 
+        effbeta *= 0.43 * beta
+    elseif br == BR_FARM 
+        effbeta *= 0.23 * beta
+    elseif br == BR_COMM # community transmission
+        effbeta *= 0.20 * beta
+    end
+
+    if x.inf == ASYMP # if the individual is symptomatic 
+        effbeta = effbeta * 0.20
+    end
+
+    effbeta = effbeta * (1.0 - y.vaceff1) # vaccine efficacy against infection
+
     if y.inf == SUS && y.swap == UNDEF # if the individual is susceptible
-        if rand() < beta # check if transmission occurs
+        if rand() < effbeta # check if transmission occurs
+            x.totalinfect += 1 
+            y.timeofinfect = time
             y.swap = EXP # swap to incubating
             infect = 1
         end
