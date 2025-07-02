@@ -196,7 +196,9 @@ function populate_household_dict()
 end
 
 function init_farming()
-    NUM_FARMS = @SVector [131, 85, 28, 12, 3] # number of farms
+    NUM_FARMS = @SVector [85, 28, 12, 3, 3] # number of farms
+    #NUM_FARMS = @SVector [131, 28, 12, 3, 3] # number of farms
+    #@info "Total number of farms: $(sum(NUM_FARMS))"
     EMP_FARMS = @SVector [1:4, 5:9, 10:19, 20:49, 50:99] # number of employees per farm
     total_farms = sum(NUM_FARMS) # total number of farms
     farm_ids = 1:total_farms # farm IDs from 1 to number of farms
@@ -273,11 +275,12 @@ function time_loop(;simid=1,
     insert_infection() # insert an infection in the farm
     
     # data collection variables
+    max_time = 365
     incidence_hh = zeros(Int64, max_time) # incidence per day in household
     incidence_fm = zeros(Int64, max_time) # incidence per day in farm
     incidence_cm = zeros(Int64, max_time) # incidence per day in comm
 
-    for t in Base.OneTo(365)
+    for t in Base.OneTo(max_time)
         for (i, x) in enumerate(humans)
             iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
             natural_history(x) # move through the natural history of the disease first         
