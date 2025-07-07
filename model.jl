@@ -251,19 +251,34 @@ function init_farming()
     return
 end
 
-function insert_infection()
-    farm = rand(keys(FARM_WORKERS))
-    idx = rand(FARM_WORKERS[farm]) # sample a random farm worker
-    x = humans[idx] # get the human object
-    x.timeofinfect = 1
-    x.swap = SYMP
-    activate_swaps(x) # activate the swap to symptomatic
-    return idx # return the indices of infected individuals
+# function insert_infection()
+#     farm = rand(keys(FARM_WORKERS))
+#     idx = rand(FARM_WORKERS[farm]) # sample a random farm worker
+#     x = humans[idx] # get the human object
+#     x.timeofinfect = 1
+#     x.swap = SYMP
+#     activate_swaps(x) # activate the swap to symptomatic
+#     return idx # return the indices of infected individuals
+# end
+insert_infection() = insert_infection(1)
+function insert_infection(num_of_infections)
+    farm = rand(keys(FARM_WORKERS), num_of_infections)
+    ids = zeros(Int64, num_of_infections)
+    for (i, fid) in enumerate(farm)
+        idx = rand(FARM_WORKERS[fid]) # sample a random farm worker
+        x = humans[idx] # get the human object
+        x.timeofinfect = 1
+        x.swap = SYMP
+        activate_swaps(x) # activate the swap to symptomatic
+        ids[i] = idx
+    end
+    return ids
 end
 
 ### TIME STEP FUNCTIONS
 function time_loop(;simid=1, 
-                    beta=0.0, 
+                    beta=0.0,
+                    init_inf=0,
                     iso_day=-1, 
                     iso_prop=0.0, 
                     vac_scn1=NONE, 
@@ -272,7 +287,7 @@ function time_loop(;simid=1,
                     )
     Random.seed!(simid*293)
     init_model()
-    insert_infection() # insert an infection in the farm
+    insert_infection(init_inf) # insert an infection in the farm
     
     # data collection variables
     max_time = 365
@@ -302,14 +317,14 @@ function time_loop(;simid=1,
     end
 
     # who infect who vector for  R-effective calculation.
-    who_infect_who = [(x.totalinfect, x.timeofinfect) for x in humans if x.inf == REC]
-    return incidence_hh, incidence_fm, incidence_cm, who_infect_who
+    # who_infect_who = [(x.totalinfect, x.timeofinfect) for x in humans if x.inf == REC]
+    return incidence_hh, incidence_fm, incidence_cm #, who_infect_who
 end
 
-function calibrate(beta; iso_day=-1, iso_prop=0.0, ) 
+function calibrate(beta; iso_day=-1, iso_prop=0.0) 
     # initialize the model
     init_model()
-    init_infect_id = insert_infection() # get the first infected individual
+    init_infect_id = insert_infection(1)[1] # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st + 1
     total_infected = 0 
