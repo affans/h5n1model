@@ -328,8 +328,10 @@ function calibrate(beta; iso_day=-1, iso_prop=0.0)
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st + 1
     total_infected = 0 
+    #is_iso = 0  #  captures if the individual was isolated 
     for t in 1:max_inf_time
         iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
+        #x.iso && (is_iso = 1)
         natural_history(x) # move through the natural history of the disease first
         _, tih, tif, tic = transmission_with_contacts!(1, t, x, beta)
         total_infected += (tih + tif + tic) # count the total infected individuals
@@ -378,11 +380,11 @@ function activate_swaps(x::Human)
             x.st = round(Int64, rand(EXP_PERIOD)) # set the incubation period
         elseif x.swap == ASYMP
             x.inf = ASYMP # swap to asymptomatic
-            inf_per = max(round(Int64, rand(INF_PERIOD)), 0)
+            inf_per = max(round(Int64, rand(INF_PERIOD)), 1)
             x.st = round(Int64, inf_per) # set the infection period
         elseif x.swap == SYMP
             x.inf = SYMP # swap to symptomatic
-            inf_per = max(round(Int64, rand(INF_PERIOD)), 0)
+            inf_per = max(round(Int64, rand(INF_PERIOD)), 1)
             x.st = round(Int64, inf_per) # set the infection period
         elseif x.swap == REC
             x.inf = REC # swap to recovered

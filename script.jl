@@ -107,6 +107,7 @@ function run_calibration_scenarios(nsims)
     # run the calibration for different scenarios
     cfgs = [(; r=12, beta=0.26), (; r=15, beta=0.295), (; r=18, beta=0.329)]
     props = 0.2:0.1:0.8
+    iso_day = 2
     for cfg in cfgs
         datares = zeros(Int64, nsims, length(props) + 1) # to store the results
         datares[:, 1] = run_calibration(nsims, cfg.beta, -1, 0.0)
@@ -114,7 +115,7 @@ function run_calibration_scenarios(nsims)
         for (i, isoprop) in enumerate(0.2:0.1:0.8)
             @info "column: $(i + 1): $(isoprop)"
             push!(_header, string(isoprop * 100))
-            datares[:, i+1] = run_calibration(nsims, cfg.beta, 3, isoprop)
+            datares[:, i+1] = run_calibration(nsims, cfg.beta, iso_day, isoprop)
         end
         plot_calibration_figure1(datares)
         fname = "./output/r$(cfg.r)_secondaryinfections.csv"
@@ -138,7 +139,9 @@ function run_incidence_scenarios(nsims)
     iso_props = 0.5:0.1:0.8
     vaxscen = (FARMONLY, FARM_AND_HH)
     vaxtypes = (A1, A2, A3)
-    init_infections = (1, 2)
+    #init_infections = (1, 2)
+    init_infections = (1, )
+    iso_day = 2 # isolation day, 2 means on-set of symptomatic
 
     # create a vector of configurations
     file_configs = vec(collect(Base.Iterators.product(beta_values, vaxtypes, init_infections)))
@@ -171,7 +174,7 @@ function run_incidence_scenarios(nsims)
         for (i, _isoprop) in enumerate(iso_props)
             ctr += 1
             @info("   ctr: $ctr col $(i + 1): (running) iso, no vax")
-            sim_data = run_sims(nsims, beta, init_inf, 3, _isoprop, NONE, A0)
+            sim_data = run_sims(nsims, beta, init_inf, iso_day, _isoprop, NONE, A0)
             datares[:, i+1] = get_vcat_incidence(sim_data)            
             flush(stdout)
         end
@@ -182,7 +185,7 @@ function run_incidence_scenarios(nsims)
             @info("   ctr: $ctr col $(i + 5): (running) iso, vax")
             _isoprop = x[1]
             _vaxscen = x[2]
-            sim_data = run_sims(nsims, beta, init_inf, 3, _isoprop, _vaxscen, vaxtype)
+            sim_data = run_sims(nsims, beta, init_inf, iso_day, _isoprop, _vaxscen, vaxtype)
             datares[:, i+5] = get_vcat_incidence(sim_data)
             flush(stdout)
         end
