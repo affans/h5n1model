@@ -283,7 +283,8 @@ function time_loop(;simid=1,
                     iso_prop=0.0, 
                     vac_scn1=NONE, 
                     vac_scn2=A0,
-                    vac_cov=0.0
+                    vac_cov=0.0,
+                    vac_time=42
                     )
     Random.seed!(simid*293)
     init_model()
@@ -309,7 +310,7 @@ function time_loop(;simid=1,
         end
         
         # vaccine init at 6 weeks later
-        if t == 42 && vac_scn1 != NONE # if it's the first month and we have a vaccination scenario 
+        if t == vac_time && vac_scn1 != NONE # if it's the first month and we have a vaccination scenario 
             @debug "Day $(t) of simulation $(simid)."
             @debug "Vaccination scenario: $(vac_scn1), $(vac_scn2) with coverage: $(vac_cov)."
             init_vac(simid, vac_scn1, vac_scn2, vac_cov)
@@ -508,11 +509,11 @@ function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_T
     infect = 0
     effbeta = beta
     if br == BR_HH 
-        effbeta *= 0.43 * beta
+        effbeta *= 0.5862 * beta
     elseif br == BR_FARM 
-        effbeta *= 0.23 * beta
+        effbeta *= 0.0565 * beta
     elseif br == BR_COMM # community transmission
-        effbeta *= 0.20 * beta
+        effbeta *= 0.3573 * beta
     end
 
     if x.inf == ASYMP # if the individual is symptomatic 
