@@ -163,7 +163,7 @@ end
 
 function run_incidence_scenarios(nsims)
     # scenario combinations
-    beta_values = ((12, 0.26), (15, 0.295), (18, 0.329))
+    beta_values = ((12, 0.25), (15, 0.285), (18, 0.314))
     iso_props = 0.5:0.1:0.8
     vaxscen = (FARMONLY, FARM_AND_HH)
     vaxtypes = (A1, A2, A3)
@@ -182,9 +182,6 @@ function run_incidence_scenarios(nsims)
     # the way this for loop works is that it repeats some configurations
     ctr = 0
     for cfg in file_configs   
-        if ctr == 100 
-            break
-        end
         rval = cfg[1][1] 
         beta = cfg[1][2]
         vaxtype = cfg[2]
