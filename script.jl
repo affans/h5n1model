@@ -39,8 +39,9 @@ using Distributed
 using DelimitedFiles
 using CSV
 using Bootstrap
+using DataFrames
 using Gnuplot  # global env
-Gnuplot.options.term = "sixelgd truecolor enhanced size 800,400 scroll font arial 10"
+Gnuplot.options.term = "sixelgd truecolor enhanced size 1000,400 scroll font arial 10"
 
 # slurm needs to have the correct ENV VARs set. 
 addprocs(SlurmManager(),
@@ -240,103 +241,43 @@ function run_incidence_scenarios(nsims)
     end
 end
 
-function plot_calibration_figure1(sim_data)
-    # plots the calibration results from run_calibration_scenarios
-    # need to bootstrap the calibration results to look at R with isolation
-
-    @gp "reset"
-    # border
-    @gp :- "set style line 101 lc rgb '#808080' lt 1 lw 1"
-    @gp :- "set border 3 front ls 101"
-    @gp :- "set tics nomirror out scale 0.75"
-
-    # grid
-    @gp :- "set style line 102 lc rgb '#808080' lt 0 lw 1"
-    @gp :- "set grid back ls 102"
-
-    # box plots
-    # @gp :- "set style data boxplot" :- # better to use with boxplot
-    @gp :- "set style boxplot medianlinewidth 2.5"
-    @gp :- "set style boxplot outliers" :-
-    @gp :- "set boxwidth 0.5 absolute" :-
-    @gp :- "set style fill solid 0.80 border lt -1" :-
-    @gp :- "set pointsize 0.5" :-
-
-    # labels and keys
-    @gp :- "unset key" :-
-    @gp :- "set xtics   ('Baseline' 1, '20%%' 2, '30%%' 3, '40%%' 4, '50%%' 5, '60%%' 6, '70%%' 7, '80%%' 8)" :-
-    #@gp :- "set format x '%.0f%%'"  :- 
-    for (i, x) in enumerate(eachcol(sim_data))
-        #println(mean(x))
-        bs1 = bootstrap(mean, x, BasicSampling(2000))
-        bsdata = bs1.t1[1]
-        @gp :- [i for _ = 1:2000] bsdata "with boxplot lt 51 lc variable" :-
-    end
-    @gp
-end
-
-function get_reffective(sims)
-    # july 5: we don't return the who_infect_who data from the model anymore 
-    # so this function is not needed for now
-    _allsims = map(sims) do y
-        sortedarr = sort(y[2], by=x -> x[2]) # sort by time
-        count_inf = zeros(Int64, 365) # create time vectors 
-        total_inf = zeros(Int64, 365)
-        for (inf, time) in sortedarr
-            total_inf[time] += inf
-            count_inf[time] += 1
-        end
-        withnans = total_inf ./ count_inf
-    end
-    allsims = reduce(hcat, _allsims)
-    map(eachrow(allsims)) do x
-        mean(filter(!isnan, x))
-    end
-end
-
 function plot_r_figure() 
     # read the data in output folder and plot the R values using the secondary_infections files 
     # WIP 
-    isoday = 2
+    isoday = 3
     r12data = CSV.read("./output/secondary_infections/r12_isoday$(isoday)_secondaryinfections.csv", DataFrame)
     r15data = CSV.read("./output/secondary_infections/r15_isoday$(isoday)_secondaryinfections.csv", DataFrame)
     r18data = CSV.read("./output/secondary_infections/r18_isoday$(isoday)_secondaryinfections.csv", DataFrame)
 
     @gp "reset"
-    @gp :- "set style line 101 lc rgb '#808080' lt 1 lw 1" # border
-    @gp :- "set border 3 front ls 101"
-    @gp :- "set tics nomirror out scale 0.75"
-    @gp :- "set style line 102 lc rgb '#808080' lt 0 lw 1" # grid
-    @gp :- "set grid back ls 102"
+    @gp :- "set multiplot layout 1, 3" :- # 1 row, 3 columns
+    @gp :- "set style line 101 lc rgb '#808080' lt 1 lw 1" :- # border
+    @gp :- "set border 3 front ls 101" :-
+    @gp :- "set tics nomirror out scale 0.75" :-
+    @gp :- "set style line 102 lc rgb '#808080' lt 0 lw 1" :- # grid
+    @gp :- "set grid back ls 102" :-
     # @gp :- "set style data boxplot" :- # better to use with boxplot
-    @gp :- "set style boxplot medianlinewidth 2.5" # box plots
-    @gp :- "set style boxplot outliers" :-
-    @gp :- "set boxwidth 0.5 absolute" :-
+    @gp :- "set style boxplot medianlinewidth 2.5" :- # box plots
+    @gp :- "set style boxplot nooutliers" :-
+    #@gp :- "set boxwidth 0.5 absolute" :- # set by the column spec passed in 
     @gp :- "set style fill solid 0.80 border lt -1" :-
     @gp :- "set pointsize 0.5" :-
-    r12mean = r12data[:, 1]
-    bs1 = bootstrap(mean, r12mean, BasicSampling(1000)).t1[1]
 
-    r15mean = r15data[:, 1]
-    bs2 = bootstrap(mean, r15mean, BasicSampling(1000)).t1[1]
-
-    # r12key = repeat(["R12"], length(r12mean))
-    # r15key = repeat(["R15"], length(r15mean))
-    # data_matrix = vcat(hcat(r12mean, r12key), hcat(r15mean, r15key))
-    #return data_matrix
-    
-    @gp :- repeat([1], length(bs1)) bs1 repeat([1], 1000) repeat([1, 2], 500) "with boxplot lt 51 lc variable" :-
-    @gp :- repeat([2], length(bs1)) bs2 repeat([0.5], 1000) repeat([1, 2], 500) "with boxplot lt 51 lc variable" :-
-    #@gp :- repeat([1.5], 1000) bs2 "with boxplot lt 51 lc variable" :-
-    
-    # for (i, x) in enumerate(eachcol(sim_data))
-    #     #println(mean(x))
-    #     bs1 = bootstrap(mean, x, BasicSampling(1000))
-    #     bsdata = bs1.t1[1]
-    #     @gp :- i bsdata "with boxplot lt 51 lc variable" :-
-    #     #@gp :- [i for _ = 1:1000] bsdata "with boxplot lt 51 lc 'blue'" :-
-    # end
-    @gp 
+    @gp :- "unset key" :-
+    @gp :- "set xtics   ('BL' 1, '20%%' 2, '30%%' 3, '40%%' 4, '50%%' 5, '60%%' 6, '70%%' 7, '80%%' 8)" :-
+    for (pn, simdata) in enumerate([r12data, r15data, r18data])
+        #@gp :- "set ylabel 'R'" :-
+        #@gp :- "set xlabel 'Isolation Proportion'" :-
+        #@gp :- "set format x '%.0f%%'"  :- 
+        for colnum in 1:8
+            
+            bs1 = bootstrap(mean, simdata[:, colnum], BasicSampling(1000)).t1[1]
+            xval = repeat([colnum], length(bs1)) # x value, in array form
+            #@gp :- pn xval bs1  "with boxplot lt 51 lc variable" :-
+            @gp :- pn xval bs1  "with boxplot lt 51 lc 'black'" :-
+        end
+    end
+    @gp
 end
 
 # run the functions if launched through sbatch
