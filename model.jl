@@ -328,20 +328,27 @@ function calibrate(beta; iso_day=-1, iso_prop=0.0)
     init_infect_id = insert_infection(1)[1] # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st + 1
-    total_infected = 0 
+    total_inf = 0 
+    total_tih = 0 
+    total_tif = 0
+    total_tic = 0
     #is_iso = 0  #  captures if the individual was isolated 
     for t in 1:max_inf_time
         iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
         #x.iso && (is_iso = 1)
         natural_history(x) # move through the natural history of the disease first
         _, tih, tif, tic = transmission_with_contacts!(1, t, x, beta)
-        total_infected += (tih + tif + tic) # count the total infected individuals
+        total_inf += (tih + tif + tic) # count the total infected individuals
+        total_tih += tih # add the household incidence
+        total_tif += tif # add the farm incidence
+        total_tic += tic # add the community incidence
         @debug "End Day $(t): tis: $(x.tis), st: $(x.st), swap: $(x.swap)  met $(tm), inf total: $(total_infected), inf hh $(tih), inf farm $(tif), inf comm $(tic)."
         activate_swaps(x)
     end
     @debug "Time end: $(x.idx), tis: $(x.tis), st: $(x.st), swap: $(x.swap), st: $(x.st)"
     @debug "Total infected: $(total_infected) individuals."
-    return total_infected
+   
+    return total_inf, total_tih, total_tif, total_tic 
 end
 
 function natural_history(x::Human)
@@ -509,11 +516,11 @@ function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_T
     infect = 0
     effbeta = beta
     if br == BR_HH 
-        effbeta *= 0.5862 * beta
+        effbeta *= 0.18 * beta
     elseif br == BR_FARM 
-        effbeta *= 0.0565 * beta
+        effbeta *= 0.12 * beta
     elseif br == BR_COMM # community transmission
-        effbeta *= 0.3573 * beta
+        effbeta *= 0.78 * beta
     end
 
     if x.inf == ASYMP # if the individual is symptomatic 

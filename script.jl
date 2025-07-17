@@ -59,14 +59,22 @@ function run_calibration(nsims, beta, isoday, isoprop)
     cd = pmap(1:nsims) do x
         # @info "Starting simulation $x on host $(gethostname()), id: $(myid())"
         # flush(stdout)
-        total_infect = calibrate(beta;
+        total_infect, tih, tif, tic  = calibrate(beta;
             iso_day=isoday,
             iso_prop=isoprop
         ) # run the calibration
-        return total_infect
+        return total_infect, tih, tif, tic
     end
-    @info "Total Infected: $(sum(cd)), Average: $(round(mean(cd), digits=1)), Variance: $(round(var(cd), digits=3))"
-    return cd
+    total_infected = [x[1] for x in cd] # get the total number of infected
+    @info "Total Infected: $(sum(total_infected)), Average: $(round(mean(total_infected), digits=1)), Variance: $(round(var(total_infected), digits=3))"
+    
+    # print proportions of infected in households, farms, communities
+    for c in (2, 3, 4)  # 2 is households, 3 is farms, 4 is communities
+        _ti = [x[c] for x in cd] # get the total number of infected in households, farms, communities
+        prop = mean(filter(!isnan, _ti ./ total_infected))
+        @info "Mean proportion, id $c: $(prop)"
+    end
+    return total_infected
 end
 
 # runs a set of simulations with the given parameters
