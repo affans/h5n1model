@@ -66,7 +66,7 @@ function run_calibration(nsims, beta, isoday, isoprop)
         return total_infect, tih, tif, tic
     end
     total_infected = [x[1] for x in cd] # get the total number of infected
-    @info "Total Infected: $(sum(total_infected)), Average: $(round(mean(total_infected), digits=1)), Variance: $(round(var(total_infected), digits=3))"
+    @info "Total Infected: $(sum(total_infected)), Average: $(round(mean(total_infected), digits=2)), Variance: $(round(var(total_infected), digits=3))"
     
     # print proportions of infected in households, farms, communities
     for c in (2, 3, 4)  # 2 is households, 3 is farms, 4 is communities
@@ -119,7 +119,7 @@ function run_calibration_scenarios(nsims)
 
     @info "Running calibration scenarios from process $(myid())"
     # run the calibration for different scenarios
-    cfgs = [(; r=12, beta=0.25), (; r=15, beta=0.285), (; r=18, beta=0.314)]
+    cfgs = [(; r=12, beta=0.265), (; r=15, beta=0.3), (; r=18, beta=0.325)]
     props = 0.2:0.1:0.8
 
     fld_name = "./output/secondary_infections"
@@ -171,7 +171,7 @@ end
 
 function run_incidence_scenarios(nsims)
     # scenario combinations
-    beta_values = ((12, 0.25), (15, 0.285), (18, 0.314))
+    beta_values = ((12, 0.265), (15, 0.3), (18, 0.325))
     iso_props = 0.5:0.1:0.8
     vaxscen = (FARMONLY, FARM_AND_HH)
     vaxtypes = (A1, A2, A3)
@@ -292,6 +292,51 @@ function get_reffective(sims)
     map(eachrow(allsims)) do x
         mean(filter(!isnan, x))
     end
+end
+
+function plot_r_figure() 
+    # read the data in output folder and plot the R values using the secondary_infections files 
+    # WIP 
+    isoday = 2
+    r12data = CSV.read("./output/secondary_infections/r12_isoday$(isoday)_secondaryinfections.csv", DataFrame)
+    r15data = CSV.read("./output/secondary_infections/r15_isoday$(isoday)_secondaryinfections.csv", DataFrame)
+    r18data = CSV.read("./output/secondary_infections/r18_isoday$(isoday)_secondaryinfections.csv", DataFrame)
+
+    @gp "reset"
+    @gp :- "set style line 101 lc rgb '#808080' lt 1 lw 1" # border
+    @gp :- "set border 3 front ls 101"
+    @gp :- "set tics nomirror out scale 0.75"
+    @gp :- "set style line 102 lc rgb '#808080' lt 0 lw 1" # grid
+    @gp :- "set grid back ls 102"
+    # @gp :- "set style data boxplot" :- # better to use with boxplot
+    @gp :- "set style boxplot medianlinewidth 2.5" # box plots
+    @gp :- "set style boxplot outliers" :-
+    @gp :- "set boxwidth 0.5 absolute" :-
+    @gp :- "set style fill solid 0.80 border lt -1" :-
+    @gp :- "set pointsize 0.5" :-
+    r12mean = r12data[:, 1]
+    bs1 = bootstrap(mean, r12mean, BasicSampling(1000)).t1[1]
+
+    r15mean = r15data[:, 1]
+    bs2 = bootstrap(mean, r15mean, BasicSampling(1000)).t1[1]
+
+    # r12key = repeat(["R12"], length(r12mean))
+    # r15key = repeat(["R15"], length(r15mean))
+    # data_matrix = vcat(hcat(r12mean, r12key), hcat(r15mean, r15key))
+    #return data_matrix
+    
+    @gp :- repeat([1], length(bs1)) bs1 repeat([1], 1000) repeat([1, 2], 500) "with boxplot lt 51 lc variable" :-
+    @gp :- repeat([2], length(bs1)) bs2 repeat([0.5], 1000) repeat([1, 2], 500) "with boxplot lt 51 lc variable" :-
+    #@gp :- repeat([1.5], 1000) bs2 "with boxplot lt 51 lc variable" :-
+    
+    # for (i, x) in enumerate(eachcol(sim_data))
+    #     #println(mean(x))
+    #     bs1 = bootstrap(mean, x, BasicSampling(1000))
+    #     bsdata = bs1.t1[1]
+    #     @gp :- i bsdata "with boxplot lt 51 lc variable" :-
+    #     #@gp :- [i for _ = 1:1000] bsdata "with boxplot lt 51 lc 'blue'" :-
+    # end
+    @gp 
 end
 
 # run the functions if launched through sbatch
