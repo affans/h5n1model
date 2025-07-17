@@ -66,8 +66,9 @@ function run_calibration(nsims, beta, isoday, isoprop)
         ) # run the calibration
         return total_infect, tih, tif, tic
     end
+    
     total_infected = [x[1] for x in cd] # get the total number of infected
-    @info "Total Infected: $(sum(total_infected)), Average: $(round(mean(total_infected), digits=2)), Variance: $(round(var(total_infected), digits=3))"
+    @info "Average: $(round(mean(total_infected), digits=2)), Variance: $(round(var(total_infected), digits=3))"
     
     # print proportions of infected in households, farms, communities
     for c in (2, 3, 4)  # 2 is households, 3 is farms, 4 is communities
@@ -279,6 +280,62 @@ function plot_r_figure()
     end
     @gp
 end
+
+function plot_incidence1()
+    vt = "reactive"
+    vt1 = 42
+    iso = 3
+    fldname = "./output/$(vt)_isoday$(iso)"
+    r12data = CSV.read("$fldname/r12_A1_i1_vt$(vt1)_isoday$(iso)_incidence.csv", DataFrame)
+    r15data = CSV.read("$fldname/r15_A1_i1_vt$(vt1)_isoday$(iso)_incidence.csv", DataFrame)
+    r18data = CSV.read("$fldname/r18_A1_i1_vt$(vt1)_isoday$(iso)_incidence.csv", DataFrame)
+
+
+    @gp "reset" 
+    @gp :- "set multiplot layout 1, 4" :- # 1 row, 3 columns
+    @gp :- "set style line 101 lc rgb '#808080' lt 1 lw 1" :- # border
+    @gp :- "set border 3 front ls 101" :-
+    @gp :- "set tics nomirror out scale 0.75" :-
+    @gp :- "set style line 102 lc rgb '#808080' lt 0 lw 1" :- # grid
+    @gp :- "set grid back ls 102" :-
+    @gp :- "set termoption dashed" :- 
+    #@gp :- "set xtics ('1' 1, '30' 2, '30%%' 3, '40%%' 4, '50%%' 5, '60%%' 6, '70%%' 7, '80%%' 8)" :-
+    @gp :- "set xtics 30" :- 
+    # plot baseline for all r values 
+    _rdata = [r12data, r15data, r18data]
+    _pdata = ["R 1.2", "R 1.5", "R 1.8"]
+    _ltype = ["lc rgb '#969696'", "lc rgb '#636363'", "lc rgb '#252525'"]
+    for (rd, pd, lt) in zip(_rdata, _pdata, _ltype)
+        _data = rd[:, :baseline]
+        h = reduce(hcat, Iterators.partition(_data, 365))
+        daily_mean = cumsum(vec(mean(h, dims=2))) # mean over the columns
+        @gp :- 1 1:150 daily_mean[1:150] "with line $lt title '$pd'" :-
+    end
+
+    
+    figcolms = [:isolation_50, :isolation_60, :isolation_70, :isolation_80] 
+    figcolrs = ["lc rgb '#377eb8'", "lc rgb '#4daf4a'", "lc rgb '#984ea3'", "lc rgb '#ff7f00'"]
+    fittitle = ["50%", "60%", "70%", "80%"]
+    for (i, rd) in enumerate([r12data, r15data, r18data])
+        for (colm, clr, ft) in zip(figcolms, figcolrs, fittitle)
+            _data = rd[:, colm]
+            h = reduce(hcat, Iterators.partition(_data, 365))
+            daily_mean = cumsum(vec(mean(h, dims=2))) # mean over the columns
+            @gp :- (i + 1) 1:180 daily_mean[1:180] "with line $clr title '$ft'" :-
+        end
+    end
+    
+    @gp 
+    
+    # manual bootstrap
+    #mbt = sample(1:1000, 1000, replace=true)
+    #mbt_mean = vec(mean(h[:, mbt], dims=2))
+    
+    #@gp :- 1:365 daily_high "with lines lw 1 lc 'red' title 'R12 95% CI'" :-
+    #@gp :- 1:365 daily_low "with lines lw 1 lc 'blue' title 'R12 5% CI'"
+    return r12data
+end
+
 
 # run the functions if launched through sbatch
 if !isinteractive()

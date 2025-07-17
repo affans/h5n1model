@@ -251,15 +251,6 @@ function init_farming()
     return
 end
 
-# function insert_infection()
-#     farm = rand(keys(FARM_WORKERS))
-#     idx = rand(FARM_WORKERS[farm]) # sample a random farm worker
-#     x = humans[idx] # get the human object
-#     x.timeofinfect = 1
-#     x.swap = SYMP
-#     activate_swaps(x) # activate the swap to symptomatic
-#     return idx # return the indices of infected individuals
-# end
 insert_infection() = insert_infection(1)
 function insert_infection(num_of_infections)
     farm = rand(keys(FARM_WORKERS), num_of_infections)
@@ -342,12 +333,11 @@ function calibrate(beta; iso_day=-1, iso_prop=0.0)
         total_tih += tih # add the household incidence
         total_tif += tif # add the farm incidence
         total_tic += tic # add the community incidence
-        @debug "End Day $(t): tis: $(x.tis), st: $(x.st), swap: $(x.swap)  met $(tm), inf total: $(total_infected), inf hh $(tih), inf farm $(tif), inf comm $(tic)."
+        @debug "End Day $(t): tis: $(x.tis), st: $(x.st), swap: $(x.swap), inf total: $(total_inf), inf hh $(tih), inf farm $(tif), inf comm $(tic)."
         activate_swaps(x)
     end
-    @debug "Time end: $(x.idx), tis: $(x.tis), st: $(x.st), swap: $(x.swap), st: $(x.st)"
-    @debug "Total infected: $(total_infected) individuals."
-   
+    @debug "Time end: tis: Total infected: $(total_inf) individuals"
+
     return total_inf, total_tih, total_tif, total_tic 
 end
 
@@ -388,12 +378,10 @@ function activate_swaps(x::Human)
             x.st = round(Int64, rand(EXP_PERIOD)) # set the incubation period
         elseif x.swap == ASYMP
             x.inf = ASYMP # swap to asymptomatic
-            inf_per = max(round(Int64, rand(INF_PERIOD)), 1)
-            x.st = round(Int64, inf_per) # set the infection period
+            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
         elseif x.swap == SYMP
             x.inf = SYMP # swap to symptomatic
-            inf_per = max(round(Int64, rand(INF_PERIOD)), 1)
-            x.st = round(Int64, inf_per) # set the infection period
+            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
         elseif x.swap == REC
             x.inf = REC # swap to recovered
             x.st = typemax(Int16) # set the recovery period to max
@@ -515,12 +503,13 @@ end
 function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_TYPE)
     infect = 0
     effbeta = beta
+    
     if br == BR_HH 
-        effbeta *= 0.18 * beta
+        effbeta = 0.18 * beta
     elseif br == BR_FARM 
-        effbeta *= 0.12 * beta
+        effbeta = 0.12 * beta
     elseif br == BR_COMM # community transmission
-        effbeta *= 0.78 * beta
+        effbeta = 0.78 * beta
     end
 
     if x.inf == ASYMP # if the individual is symptomatic 
@@ -528,7 +517,6 @@ function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_T
     end
 
     effbeta = effbeta * (1.0 - y.vaceff1) # vaccine efficacy against infection
-
     if y.inf == SUS && y.swap == UNDEF # if the individual is susceptible
         if rand() < effbeta # check if transmission occurs
             x.totalinfect += 1 
