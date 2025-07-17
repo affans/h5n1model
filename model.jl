@@ -503,15 +503,13 @@ end
 function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_TYPE)
     infect = 0
     effbeta = beta
-    
-    if br == BR_HH 
-        effbeta = 0.18 * beta
-    elseif br == BR_FARM 
-        effbeta = 0.12 * beta
-    elseif br == BR_COMM # community transmission
-        effbeta = 0.78 * beta
-    end
-
+    # if br == BR_HH 
+    #     effbeta = 0.18 * beta
+    # elseif br == BR_FARM 
+    #     effbeta = 0.12 * beta
+    # elseif br == BR_COMM # community transmission
+    #     effbeta = 0.78 * beta
+    # end
     if x.inf == ASYMP # if the individual is symptomatic 
         effbeta = effbeta * 0.20
     end
