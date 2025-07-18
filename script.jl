@@ -68,7 +68,7 @@ function run_calibration(nsims, beta, isoday, isoprop)
     end
     
     total_infected = [x[1] for x in cd] # get the total number of infected
-    @info "Average: $(round(mean(total_infected), digits=2)), Variance: $(round(var(total_infected), digits=3))"
+    @info "Average: $(round(mean(total_infected), digits=1)), Variance: $(round(var(total_infected), digits=3))"
     
     # print proportions of infected in households, farms, communities
     for c in (2, 3, 4)  # 2 is households, 3 is farms, 4 is communities
@@ -78,6 +78,24 @@ function run_calibration(nsims, beta, isoday, isoprop)
     end
     return total_infected
 end
+
+# julia> run_calibration(1000, 0.032, -1, 0.0);
+# [ Info: Average: 1.8, Variance: 2.762
+# [ Info: Mean proportion, id 2: 0.451662143826323
+# [ Info: Mean proportion, id 3: 0.29867599233270875
+# [ Info: Mean proportion, id 4: 0.24966186384096825
+
+# julia> run_calibration(1000, 0.026, -1, 0.0);
+# [ Info: Average: 1.5, Variance: 2.318
+# [ Info: Mean proportion, id 2: 0.4499432287365813
+# [ Info: Mean proportion, id 3: 0.32896022570878064
+# [ Info: Mean proportion, id 4: 0.22109654555463806
+
+# julia> run_calibration(1000, 0.021, -1, 0.0);
+# [ Info: Average: 1.2, Variance: 1.831
+# [ Info: Mean proportion, id 2: 0.4380294139772814
+# [ Info: Mean proportion, id 3: 0.3585345670653728
+# [ Info: Mean proportion, id 4: 0.20343601895734598
 
 # runs a set of simulations with the given parameters
 function run_sims(nsims, 
@@ -121,7 +139,7 @@ function run_calibration_scenarios(nsims)
 
     @info "Running calibration scenarios from process $(myid())"
     # run the calibration for different scenarios
-    cfgs = [(; r=12, beta=0.265), (; r=15, beta=0.3), (; r=18, beta=0.325)]
+    cfgs = [(; r=12, beta=0.021), (; r=15, beta=0.026), (; r=18, beta=0.032)]
     props = 0.2:0.1:0.8
 
     fld_name = "./output/secondary_infections"
@@ -173,7 +191,7 @@ end
 
 function run_incidence_scenarios(nsims)
     # scenario combinations
-    beta_values = ((12, 0.265), (15, 0.3), (18, 0.325))
+    beta_values = ((12, 0.021), (15, 0.026), (18, 0.032)) # (R, beta)
     iso_props = 0.5:0.1:0.8
     vaxscen = (FARMONLY, FARM_AND_HH)
     vaxtypes = (A1, A2, A3)
