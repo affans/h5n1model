@@ -19,11 +19,11 @@
     vac_cov=0.0, # vaccine coverage
     vac_time=42  # when vaccine will start
   ```
-  > [!NOTE]  
-  > The function will automatically initialize the model (so no need to run `init_` functions - see below)
+> [!NOTE]  
+> The function will automatically initialize the model (so no need to run `init_` functions - see below)
 
-  > [!NOTE]  
-  > The results in the manuscript are based on a `n = 1000` independent runs of `time_loop()` for each scenario (about 500 scenarios). This was done in a parallel fashion on a compute cluster (see `script.jl`). One may also just use a for loop to run 1000 replicates. 
+> [!NOTE]  
+> The results in the manuscript are based on a `n = 1000` independent runs of `time_loop()` for each scenario (about 500 scenarios). This was done in a parallel fashion on a compute cluster (see `script.jl`). One may also just use a for loop to run 1000 replicates. 
 
 - The function `calibrate(...)` is used to calibrate and find the number of secondary infections. The parameters include number of simulations, beta value, and isolation parameters. Calibration involved finding a beta value such that the number of secondary infections equal 1.2, 1.5, and 1.8 (reproduction numbers). Isolation was turned on after calibration to see the reduction in secondary infections due to isolation.
   > [!NOTE]  
