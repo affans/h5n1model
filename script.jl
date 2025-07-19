@@ -260,6 +260,27 @@ function run_incidence_scenarios(nsims)
     end
 end
 
+function get_average_vaccinecnt() 
+    # get the average number of vaccinated individuals in the simulation
+    # this is used to check if the vaccination scenarios are working correctly
+    # we run the simulation with 1000 iterations and get the average number of vaccinated individuals
+    nsims = 10
+    vscn1 = (FARMONLY, FARM_AND_HH)
+    vscn2 = (A1, A2, A3) # vaccination types
+    vac_cov = 0.80 # 80% coverage
+    cnts = zeros(Int64, nsims) # to store the counts
+    for v1 in vscn1
+        for v2 in vscn2
+            for i in 1:nsims
+                init_model()
+                cnts[i] = init_vac(1, v1, v2, vac_cov)
+            end
+            @info "mean vaccinated, scenario $v1, $v2: $(mean(cnts))"
+        end
+    end
+    return
+end
+
 function plot_r_figure() 
     # read the data in output folder and plot the R values using the secondary_infections files 
     # WIP 
@@ -326,8 +347,8 @@ function plot_incidence1()
     for (rd, pd, lt) in zip(_rdata, _pdata, _ltype)
         _data = rd[:, :baseline]
         h = reduce(hcat, Iterators.partition(_data, 365))
-        daily_mean = cumsum(vec(mean(h, dims=2))) # mean over the columns
-        @gp :- 1 1:150 daily_mean[1:150] "with line $lt title '$pd'" :-
+        daily_mean = vec(mean(h, dims=2)) # mean over the columns
+        @gp :- 1 1:365 daily_mean "with line $lt title '$pd'" :-
     end
 
     
@@ -338,19 +359,11 @@ function plot_incidence1()
         for (colm, clr, ft) in zip(figcolms, figcolrs, fittitle)
             _data = rd[:, colm]
             h = reduce(hcat, Iterators.partition(_data, 365))
-            daily_mean = cumsum(vec(mean(h, dims=2))) # mean over the columns
-            @gp :- (i + 1) 1:180 daily_mean[1:180] "with line $clr title '$ft'" :-
+            daily_mean = vec(mean(h, dims=2)) # mean over the columns
+            @gp :- (i + 1) 1:365 daily_mean "with line $clr title '$ft'" :-
         end
     end
-    
     @gp 
-    
-    # manual bootstrap
-    #mbt = sample(1:1000, 1000, replace=true)
-    #mbt_mean = vec(mean(h[:, mbt], dims=2))
-    
-    #@gp :- 1:365 daily_high "with lines lw 1 lc 'red' title 'R12 95% CI'" :-
-    #@gp :- 1:365 daily_low "with lines lw 1 lc 'blue' title 'R12 5% CI'"
     return r12data
 end
 

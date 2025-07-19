@@ -408,7 +408,8 @@ function init_vac(simid, scn1::VACSCN1, scn2::VACSCN2, coverage)
         eff1 = 0.50 # no protection against infection
         eff2 = 0.85 # 50% additional protection for symptomatic disease
     end
-    
+    cnt = 0 # count of vaccinated individuals
+    (scn1 == NONE || scn2 == A0) && return cnt # if no vaccination scenario, return 0
     for (k, v) in FARM_WORKERS
         if rand(rng2) < coverage
             for idx in v
@@ -416,13 +417,15 @@ function init_vac(simid, scn1::VACSCN1, scn2::VACSCN2, coverage)
                 if scn1 == FARMONLY 
                     x.vaceff1 = eff1 # mark the individual as vaccinated
                     x.vaceff2 = eff2
+                    cnt += 1
                 elseif scn1 == FARM_AND_HH
                     hh = HOUSEHOLD_MEMBERS[x.hid] # get the household members of the farm worker 
                     for hidx in hh
-                        y = humans[hidx] # get the household member
+                        y = humans[hidx] # get the household member, includes the farmer itself
                         if y.age >= 1
                             y.vaceff1 = eff1 # mark the individual as vaccinated
-                            y.vaceff2 = eff2
+                            y.vaceff2 = 
+                            cnt += 1
                         end
                     end
                 end
@@ -430,7 +433,7 @@ function init_vac(simid, scn1::VACSCN1, scn2::VACSCN2, coverage)
         end
     end
     # since this uses random numbers in the middle of the simulation, we need to reset the random number generator
-    return
+    return cnt
 end
 
 @enum BETA_REDUC_TYPE BR_HH BR_FARM BR_COMM # beta reduction types
