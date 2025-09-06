@@ -12,6 +12,7 @@ using StaticArrays
 # define an agent and all agent properties
 Base.@kwdef mutable struct Human
     idx::Int64 = 0
+    beta::Float64 = 0.0
     age::Int64 = 0 # age in weeks
     agegroup::Int8 = 0 # store the age group for easier access to other properties
     hid::Int64 = 0 # household id
@@ -251,8 +252,7 @@ function init_farming()
     return
 end
 
-insert_infection() = insert_infection(1)
-function insert_infection(num_of_infections)
+function insert_infection(num_of_infections, beta)
     farm = rand(keys(FARM_WORKERS), num_of_infections)
     ids = zeros(Int64, num_of_infections)
     for (i, fid) in enumerate(farm)
@@ -260,6 +260,7 @@ function insert_infection(num_of_infections)
         x = humans[idx] # get the human object
         x.timeofinfect = 1
         x.swap = SYMP
+        x.beta = beta
         activate_swaps(x) # activate the swap to symptomatic
         ids[i] = idx
     end
@@ -279,7 +280,7 @@ function time_loop(;simid=1,
                     )
     Random.seed!(simid*293)
     init_model()
-    insert_infection(init_inf) # insert an infection in the farm
+    insert_infection(init_inf, beta) # insert an infection in the farm
     
     # data collection variables
     max_time = 365
@@ -293,7 +294,7 @@ function time_loop(;simid=1,
             natural_history(x) # move through the natural history of the disease first         
             _, tih, tif, tic = transmission_with_contacts!(simid, t, x, beta)
             activate_swaps(x) # essentially "midnight"
-            
+            virus_mutation(x)
             # data collection 
             incidence_cm[t] += tic # add the community incidence
             incidence_fm[t] += tif # add the farm incidence
@@ -316,7 +317,7 @@ end
 function calibrate(beta; iso_day=-1, iso_prop=0.0) 
     # initialize the model
     init_model()
-    init_infect_id = insert_infection(1)[1] # get the first infected individual
+    init_infect_id = insert_infection(1, beta)[1] # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st + 1
     total_inf = 0 
@@ -505,14 +506,8 @@ end
 
 function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_TYPE)
     infect = 0
-    effbeta = beta
-    # if br == BR_HH 
-    #     effbeta = 0.18 * beta
-    # elseif br == BR_FARM 
-    #     effbeta = 0.12 * beta
-    # elseif br == BR_COMM # community transmission
-    #     effbeta = 0.78 * beta
-    # end
+    effbeta = x.beta
+    
     if x.inf == ASYMP # if the individual is symptomatic 
         effbeta = effbeta * 0.20
     end
@@ -522,9 +517,34 @@ function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_T
         if rand() < effbeta # check if transmission occurs
             x.totalinfect += 1 
             y.timeofinfect = time
+            y.beta = x.beta
             y.swap = EXP # swap to incubating
             infect = 1
         end
     end
     return infect
+end
+
+function virus_mutation(x::Human) 
+    # error check 
+    (x.beta >= 0.0 && x.inf == SUS) && error("Susceptible individuals can not have a beta value")
+
+    p_mut = 0.01 
+    p_jump = 0.01  
+    effbeta = x.beta 
+    beta_for_r1 = 0.0
+
+    if effbeta == 0.0
+        return 0.0
+    end 
+    if rand() < p_mut 
+        delta = rand(LogNormal(-1.6594, 0.4))
+        if rand() < p_jump  
+            effbeta = beta_for_r1 * (1 + delta) # jump to a new beta value 
+        else 
+            effbeta = effbeta * (1 + delta) # regular incremental mutation
+        end 
+    end
+    x.beta = effbeta 
+    return effbeta
 end
