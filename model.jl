@@ -48,6 +48,7 @@ const HOUSEHOLD_MEMBERS = Dict{Int64,Vector{Int64}}() # key is household ID, val
 const FARM_WORKERS = Dict{Int64,Vector{Int64}}() # key is farm ID, value is vector of human indices in that farm
 const INF_PERIOD = Gamma(3.2949, 2.7314)
 const EXP_PERIOD = Weibull(2.3015, 3.7242) # incubation period
+const MUTATION_INCREMENT = LogNormal(-2.3026, 0.4) # mutation increment distribution 
 const will_meet = falses(POPSIZE) # array to mark who will meet whom
 
 function init_state()
@@ -252,14 +253,14 @@ function init_farming()
     return
 end
 
-function insert_infection(num_of_infections, beta)
+function insert_infection(num_of_infections, beta, inftype::INFTYPE)
     farm = rand(keys(FARM_WORKERS), num_of_infections)
     ids = zeros(Int64, num_of_infections)
     for (i, fid) in enumerate(farm)
         idx = rand(FARM_WORKERS[fid]) # sample a random farm worker
         x = humans[idx] # get the human object
         x.timeofinfect = 1
-        x.swap = SYMP
+        x.swap = inftype
         x.beta = beta
         activate_swaps(x) # activate the swap to symptomatic
         ids[i] = idx
@@ -280,8 +281,7 @@ function time_loop(;simid=1,
                     )
     Random.seed!(simid*293)
     init_model()
-    insert_infection(init_inf, beta) # insert an infection in the farm
-    
+    insert_infection(init_inf, beta, SYMP) # insert an infection in the farm
     # data collection variables
     max_time = 365
     incidence_hh = zeros(Int64, max_time) # incidence per day in household
@@ -292,9 +292,8 @@ function time_loop(;simid=1,
         for (i, x) in enumerate(humans)
             iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
             natural_history(x) # move through the natural history of the disease first         
-            _, tih, tif, tic = transmission_with_contacts!(simid, t, x, beta)
+            _, tih, tif, tic = transmission_with_contacts!(simid, t, x)
             activate_swaps(x) # essentially "midnight"
-            virus_mutation(x)
             # data collection 
             incidence_cm[t] += tic # add the community incidence
             incidence_fm[t] += tif # add the farm incidence
@@ -317,7 +316,7 @@ end
 function calibrate(beta; iso_day=-1, iso_prop=0.0) 
     # initialize the model
     init_model()
-    init_infect_id = insert_infection(1, beta)[1] # get the first infected individual
+    init_infect_id = insert_infection(1, beta, SYMP)[1] # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st + 1
     total_inf = 0 
@@ -328,8 +327,8 @@ function calibrate(beta; iso_day=-1, iso_prop=0.0)
     for t in 1:max_inf_time
         iso_dynamics(x, iso_day, iso_prop) # check if the individual needs to be isolated or not (before natural history) 
         #x.iso && (is_iso = 1)
+        _, tih, tif, tic = transmission_with_contacts!(1, t, x)
         natural_history(x) # move through the natural history of the disease first
-        _, tih, tif, tic = transmission_with_contacts!(1, t, x, beta)
         total_inf += (tih + tif + tic) # count the total infected individuals
         total_tih += tih # add the household incidence
         total_tif += tif # add the farm incidence
@@ -349,7 +348,7 @@ function natural_history(x::Human)
         will_swap = true
         x.inf ∈ (SUS, REC) && error("SUS/REC state can not expire")
         if x.inf == EXP 
-            prob_of_symp = 0.97 * (1.0 - x.vaceff2)
+            prob_of_symp = 0.50 * (1.0 - x.vaceff2)
             if rand() < prob_of_symp
                 x.swap = SYMP # swap to symptomatic
             else
@@ -372,6 +371,7 @@ end
 end
 
 function activate_swaps(x::Human)
+    serial_interval = 8.4
     if x.swap ≠ UNDEF
         x.tis = 0  # reset time in state
         if x.swap == EXP
@@ -379,10 +379,10 @@ function activate_swaps(x::Human)
             x.st = round(Int64, rand(EXP_PERIOD)) # set the incubation period
         elseif x.swap == ASYMP
             x.inf = ASYMP # swap to asymptomatic
-            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
+            x.st = round(Int64, min(rand(INF_PERIOD), 5*serial_interval)) # set the infection period
         elseif x.swap == SYMP
             x.inf = SYMP # swap to symptomatic
-            x.st = round(Int64, rand(INF_PERIOD)) # set the infection period
+            x.st = round(Int64, min(rand(INF_PERIOD), 5*serial_interval)) # set the infection period
         elseif x.swap == REC
             x.inf = REC # swap to recovered
             x.st = typemax(Int16) # set the recovery period to max
@@ -437,8 +437,7 @@ function init_vac(simid, scn1::VACSCN1, scn2::VACSCN2, coverage)
     return cnt
 end
 
-@enum BETA_REDUC_TYPE BR_HH BR_FARM BR_COMM # beta reduction types
-function transmission_with_contacts!(simid, time, x::Human, beta)
+function transmission_with_contacts!(simid, time, x::Human)
     # This is an allocation free method to get daily contacts for an individual
     # for each contact, we check for transmission right away to avoid allocating 
     # however, the flag on the global will_meet will set to true for each contact
@@ -448,7 +447,7 @@ function transmission_with_contacts!(simid, time, x::Human, beta)
     farm_id = x.fid
     house_id = x.hid # get the household ID of the individual
     age_group = x.agegroup # get the age group of the individual
-    
+    xbeta = x.beta
     # counting variables
     total_inf_household = 0
     total_inf_farms = 0
@@ -461,7 +460,7 @@ function transmission_with_contacts!(simid, time, x::Human, beta)
     # household contacts
     for idx in HOUSEHOLD_MEMBERS[house_id]
         # will_meet[idx] = true # mark the household member as will meet (in case needed later)
-        total_inf_household += check_for_transmission(time, x, humans[idx], beta, BR_HH) # check for transmission
+        total_inf_household += check_for_transmission(time, x, humans[idx], xbeta) # check for transmission
         total_meet += 1
     end
     
@@ -479,7 +478,7 @@ function transmission_with_contacts!(simid, time, x::Human, beta)
         for idx in sampled_workers
             #@debug "Farmer $(x.idx) will meet farm worker $(idx)." 
             # will_meet[idx] = true # mark the worker as will meet
-            total_inf_farms += check_for_transmission(time, x, humans[idx], beta, BR_FARM) # check for transmission
+            total_inf_farms += check_for_transmission(time, x, humans[idx], xbeta) # check for transmission
             total_meet += 1
         end
     end
@@ -496,7 +495,7 @@ function transmission_with_contacts!(simid, time, x::Human, beta)
         k = rand(contact_distr) # sample the age group for contacts
         idx = rand(AGE_BUCKETS[k]) # sample a random person from the age bucket for that age group
         # will_meet[idx] = true # mark the individual in the age group as will meet
-        total_inf_community += check_for_transmission(time, x, humans[idx], beta, BR_COMM) # check for transmission
+        total_inf_community += check_for_transmission(time, x, humans[idx], xbeta) # check for transmission
         total_meet += 1
         #@debug "Farmer $(x.idx) will meet community individual $(idx) from age group $(k)."
     end
@@ -504,11 +503,11 @@ function transmission_with_contacts!(simid, time, x::Human, beta)
     return total_meet, total_inf_household, total_inf_farms, total_inf_community # return the total number of contacts and infections
 end
 
-function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_TYPE)
+function check_for_transmission(time, x::Human, y::Human, beta)
     infect = 0
-    effbeta = x.beta
+    effbeta = beta
     
-    if x.inf == ASYMP # if the individual is symptomatic 
+    if x.inf == ASYMP
         effbeta = effbeta * 0.20
     end
 
@@ -517,7 +516,11 @@ function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_T
         if rand() < effbeta # check if transmission occurs
             x.totalinfect += 1 
             y.timeofinfect = time
-            y.beta = x.beta
+            # assign beta to the susceptible who jsut got infected
+            # don't store effbeta (even for asymptomatic, it's the same virus fitness)
+            # check for mutation immediately upon transmission
+            y.beta = x.beta 
+            virus_mutation(y) 
             y.swap = EXP # swap to incubating
             infect = 1
         end
@@ -526,25 +529,20 @@ function check_for_transmission(time, x::Human, y::Human, beta, br::BETA_REDUC_T
 end
 
 function virus_mutation(x::Human) 
-    # error check 
-    (x.beta >= 0.0 && x.inf == SUS) && error("Susceptible individuals can not have a beta value")
+    p_mut = 0.01  # probability of mutation 
+    p_jump = 0.01 # probability of large jump mutation 
+    beta_for_r1 = 0.085 # calibrated beta to R = 1.0, see script.jl,  run_calibration(5000,  0.085, -1, 0.0);
+    xbeta = x.beta 
 
-    p_mut = 0.01 
-    p_jump = 0.01  
-    effbeta = x.beta 
-    beta_for_r1 = 0.0
-
-    if effbeta == 0.0
-        return 0.0
-    end 
-    if rand() < p_mut 
-        delta = rand(LogNormal(-1.6594, 0.4))
-        if rand() < p_jump  
-            effbeta = beta_for_r1 * (1 + delta) # jump to a new beta value 
-        else 
-            effbeta = effbeta * (1 + delta) # regular incremental mutation
-        end 
+    if rand() < p_mut
+        delta = rand(MUTATION_INCREMENT)
+        if rand() < p_jump
+            # jump to a new beta value which forces R > 1.0 (beta_for_r1 is the beta for R = 1)
+            _newbeta = beta_for_r1 * (1 + delta)
+            x.beta = max(xbeta, _newbeta) # incremental small mutations could already bring it above R = 1.0            
+        else
+            x.beta = xbeta * (1 + delta) # regular incremental mutation
+        end
     end
-    x.beta = effbeta 
-    return effbeta
+    return nothing
 end
