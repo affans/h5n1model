@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 #SBATCH --job-name=abm-h5n1          # Job name
-#SBATCH --nodes=7                    # Request n nodes
+#SBATCH --nodes=7                     # Request n nodes
 ##SBATCH --ntasks-per-node=90         # 10 tasks per node
 #SBATCH --ntasks=90                  # Total number of tasks
 #SBATCH --output=soutput.log         # Log output file output_%j.log
@@ -97,6 +97,19 @@ end
 # [ Info: Mean proportion, id 3: 0.3585345670653728
 # [ Info: Mean proportion, id 4: 0.20343601895734598
 
+# REVISIONS - CALIBRATION TO 0.2 and 1.0
+# julia> run_calibration(5000,  0.085, -1, 0.0);
+# [ Info: Average: 1.0, Variance: 1.371
+# [ Info: Mean proportion, id 2: 0.44116187411682584
+# [ Info: Mean proportion, id 3: 0.3535841973543081
+# [ Info: Mean proportion, id 4: 0.20525392852886595
+
+# julia> run_calibration(5000,  0.017, -1, 0.0);
+# [ Info: Average: 0.2, Variance: 0.222
+# [ Info: Mean proportion, id 2: 0.43688981868898186
+# [ Info: Mean proportion, id 3: 0.3335076708507671
+# [ Info: Mean proportion, id 4: 0.22960251046025104
+
 # runs a set of simulations with the given parameters
 function run_sims(nsims, 
                 _beta,    
@@ -116,9 +129,9 @@ function run_sims(nsims,
               init infections => $(_init_inf)
           """
     cd = pmap(1:nsims) do x
-        ihouse, ifarm, icomm = time_loop(;
+        res = time_loop(;
             simid=x,
-            beta = _beta, # 0.324:1.8, 0.255 = 1.2
+            beta = _beta,
             init_inf = _init_inf,
             iso_day = _iso_day,  # 0 means on-set of symptomatic
             iso_prop = _iso_prop,
@@ -127,85 +140,53 @@ function run_sims(nsims,
             vac_cov = 0.80, 
             vac_time = _vac_time
         )
-        itotal = ihouse + ifarm + icomm
-        return itotal
+        return res
     end
+    println("sizeof: $(sizeof(cd) / 1_000_000) MB, summarysize: $(Base.summarysize(cd) / 1_000_000) MB")
     return cd
 end
 
-function run_calibration_scenarios(nsims)
-    # calculates the reproduction number for different scenarios
-    # it loops over all R and Iso proportion values
-
-    @info "Running calibration scenarios from process $(myid())"
-    # run the calibration for different scenarios
-    cfgs = [(; r=12, beta=0.021), (; r=15, beta=0.026), (; r=18, beta=0.032)]
-    props = 0.2:0.1:0.8
-
-    fld_name = "./output/secondary_infections"
-    if !isdir(fld_name)
-        @info "Creating folder: $fld_name"
-        mkpath(fld_name)
-    end
-   
-    # iso_day = 2
-    for cfg in cfgs
-        @info "running calibration configuration: r=$(cfg.r), beta=$(cfg.beta)"
-        datares = zeros(Int64, nsims, length(props) + 1) # to store the results
-        datares[:, 1] = run_calibration(nsims, cfg.beta, -1, 0.0)
-        _header = ["baseline"]
-        for (i, isoprop) in enumerate(0.2:0.1:0.8)
-            @info "   R = $(cfg.r), iso prop: $(isoprop), column: $(i + 1)"
-            push!(_header, string(isoprop * 100))
-            datares[:, i+1] = run_calibration(nsims, cfg.beta, 2, isoprop)
-        end
-        fname = "$fld_name/r$(cfg.r)_isoday2_secondaryinfections.csv"
-        CSV.write(fname, CSV.Tables.table(datares); header=_header)
-    end
-
-    # iso_day = 3
-    for cfg in cfgs
-        @info "running calibration configuration: r=$(cfg.r), beta=$(cfg.beta) for day 3"
-        datares = zeros(Int64, nsims, length(props) + 1) # to store the results
-        datares[:, 1] = run_calibration(nsims, cfg.beta, -1, 0.0)
-        _header = ["baseline"]
-        for (i, isoprop) in enumerate(0.2:0.1:0.8)
-            @info "   R = $(cfg.r), iso prop: $(isoprop), column: $(i + 1)"
-            push!(_header, string(isoprop * 100))
-            datares[:, i+1] = run_calibration(nsims, cfg.beta, 3, isoprop)
-        end
-        fname = "$fld_name/r$(cfg.r)_isoday3_secondaryinfections.csv"
-        CSV.write(fname, CSV.Tables.table(datares); header=_header)
-    end
+function vcat_sim_colid(simobj, colid)
+    # extracts a column from the simulation result and vcats it together 
+    # columns 1:3 = incidence 
+    # colums 4 = max beta value
+    # columns 5 = max generation value
+    reduce(vcat, getindex.(simobj, colid))
 end
 
-function get_hcat_incidence(sims)
-    # concatenates the simulation results in a matrix
-    m = reduce(hcat, sims)
-end
-
-function get_vcat_incidence(sims)
-    # concatenates the simulation results in a single vector
-    m = reduce(vcat, sims)
+function get_incidence(simobj, setting) 
+    # setting is one of :all, :hh, :fm, :cm
+    if setting == :all 
+        return vcat_sim_colid(simobj, 1) .+ vcat_sim_colid(simobj, 2) .+ vcat_sim_colid(simobj, 3)
+    elseif setting == :hh
+        return vcat_sim_colid(simobj, 1)
+    elseif setting == :fm
+        return vcat_sim_colid(simobj, 2)
+    elseif setting == :cm
+        return vcat_sim_colid(simobj, 3)
+    else
+        error("setting must be one of :all, :hh, :fm, :cm")
+    end
 end
 
 function run_incidence_scenarios(nsims)
     # scenario combinations
-    beta_values = ((12, 0.021), (15, 0.026), (18, 0.032)) # (R, beta)
+    beta_values = ((02, 0.017),) # (R, beta)
+    vaxtypes = (A1, A2, A3) # see model.jl for A* defns
+    init_infections = (1, )
+    iso_day = (1, 2)#(2, 3) # isolation day, 2 means on-set of symptomatic
+    vac_time = (1, 42)#(1, 42) # vaccination time, 42 days after the start of the simulation
+
+    # scenarios within each file 
     iso_props = 0.5:0.1:0.8
     vaxscen = (FARMONLY, FARM_AND_HH)
-    vaxtypes = (A1, A2, A3)
-    #init_infections = (1, 2)
-    init_infections = (1, )
-    iso_day = (2, 3) # isolation day, 2 means on-set of symptomatic
-    vac_time = (1, 42) # vaccination time, 42 days after the start of the simulation
 
     # create a vector of configurations
     file_configs = vec(collect(Base.Iterators.product(beta_values, vaxtypes, init_infections, iso_day, vac_time)))
-   
-    # loop through the configurations: each cfg is a tuple of (beta_values, vaxtypes, init_infections)
-    # use the configuration to create a filename
-    # columns per file: baseline, isolation 50 - 80 (4 columns), farm only vaccine (50 to 80) (4 columns), farm_HH vaccine (50 to 80) (4 columns)
+    @info "Total number of files to be generated: $(length(file_configs))"
+
+    # loop through the configurations and use the configuration to create a filename
+    # cols per file: baseline, isolation 50%-80% (4 columns), iso + farm vax (4 columns, 50%-80%), iso + farm_household vaccine (4 columns, 50%-80%)
     # total of 1 + 4 + 4 + 4 = 13 columns
     # the way this for loop works is that it repeats some configurations
     ctr = 0
@@ -224,24 +205,35 @@ function run_incidence_scenarios(nsims)
             @info "Creating folder: $fld_name"
             mkpath(fld_name)
         end
-        fname = "r$(rval)_$(vaxtype)_i$(init_inf)_vt$(vt)_isoday$(iso_day)_incidence.csv"
+        fname = "r$(rval)_$(vaxtype)_i$(init_inf)_vt$(vt)_isoday$(iso_day)"
         @info("Generating file: $fname")
         ctr += 1
         
-        # create data structure for the results
-        datares = zeros(Int64, 365 * nsims, 13)
+        # create data structures for the results
+        d1 = zeros(Int64, 365 * nsims, 13) # for incidence_hh
+        #d2 = zeros(Int64, 365 * nsims, 13) # for incidence_fm
+        #d3 = zeros(Int64, 365 * nsims, 13) # for incidence_cm
+        d4 = zeros(Float64, nsims, 13) # for maximum beta value 
+        d5 = zeros(Int64, nsims, 13) # for maximum generation value
 
         # run baseline scenario
         @info("   ctr: $ctr col 1: (running) baseline scenario")
         sim_data = run_sims(nsims, beta, init_inf, -1, 0.0, NONE, A0, 0) 
-        datares[:, 1] = get_vcat_incidence(sim_data)
-        
+
+        # populate each of the data structs, 1st column is baseline
+        d1[:, 1] = get_incidence(sim_data, :all) 
+        d4[:, 1] = vcat_sim_colid(sim_data, 4) # max beta value
+        d5[:, 1] = vcat_sim_colid(sim_data, 5) # max generation value
+
         # run isolation scenarios
         for (i, _isoprop) in enumerate(iso_props)
             ctr += 1
             @info("   ctr: $ctr col $(i + 1): (running) isoprop: $(_isoprop), no vax")
             sim_data = run_sims(nsims, beta, init_inf, iso_day, _isoprop, NONE, A0, 0)
-            datares[:, i+1] = get_vcat_incidence(sim_data)            
+            
+            d1[:, i+1] = get_incidence(sim_data, :all)
+            d4[:, i+1] = vcat_sim_colid(sim_data, 4)
+            d5[:, i+1] = vcat_sim_colid(sim_data, 5)
         end
 
         # run vaccination scenarios
@@ -251,9 +243,35 @@ function run_incidence_scenarios(nsims)
             _isoprop = x[1]
             _vaxscen = x[2]
             sim_data = run_sims(nsims, beta, init_inf, iso_day, _isoprop, _vaxscen, vaxtype, vt)
-            datares[:, i+5] = get_vcat_incidence(sim_data)
+            d1[:, i+5] = get_incidence(sim_data, :all)
+            d4[:, i+5] = vcat_sim_colid(sim_data, 4)
+            d5[:, i+5] = vcat_sim_colid(sim_data, 5)
         end
-        CSV.write("$fld_name/$fname", CSV.Tables.table(datares); header=["baseline", 
+
+        # write each of the data structs to a csv file
+
+        # incidence_hh
+        CSV.write("$fld_name/$(fname)_incidence.csv", CSV.Tables.table(d1); header=["baseline", 
+            "isolation_50", "isolation_60", "isolation_70", "isolation_80",
+            "farmonly_50", "farmonly_60", "farmonly_70", "farmonly_80",
+            "farmhh_50", "farmhh_60", "farmhh_70", "farmhh_80"])
+
+        # CSV.write("$fld_name/$(fname)_fm.csv", CSV.Tables.table(d2); header=["baseline", 
+        #     "isolation_50", "isolation_60", "isolation_70", "isolation_80",
+        #     "farmonly_50", "farmonly_60", "farmonly_70", "farmonly_80",
+        #     "farmhh_50", "farmhh_60", "farmhh_70", "farmhh_80"])
+
+        # CSV.write("$fld_name/$(fname)_cm.csv", CSV.Tables.table(d3); header=["baseline", 
+        #     "isolation_50", "isolation_60", "isolation_70", "isolation_80",
+        #     "farmonly_50", "farmonly_60", "farmonly_70", "farmonly_80",
+        #     "farmhh_50", "farmhh_60", "farmhh_70", "farmhh_80"])
+
+        CSV.write("$fld_name/$(fname)_maxbeta.csv", CSV.Tables.table(d4); header=["baseline", 
+            "isolation_50", "isolation_60", "isolation_70", "isolation_80",
+            "farmonly_50", "farmonly_60", "farmonly_70", "farmonly_80",
+            "farmhh_50", "farmhh_60", "farmhh_70", "farmhh_80"])
+
+        CSV.write("$fld_name/$(fname)_maxgen.csv", CSV.Tables.table(d5); header=["baseline", 
             "isolation_50", "isolation_60", "isolation_70", "isolation_80",
             "farmonly_50", "farmonly_60", "farmonly_70", "farmonly_80",
             "farmhh_50", "farmhh_60", "farmhh_70", "farmhh_80"])
@@ -370,10 +388,6 @@ end
 
 # run the functions if launched through sbatch
 if !isinteractive()
-    # run the calibration scenarios
-    @info ("Running Calibration Scenarios")
-    run_calibration_scenarios(5000)
-
     @info "Running Incidence Scenarios"
     run_incidence_scenarios(1000)
     exit(0)

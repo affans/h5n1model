@@ -24,10 +24,9 @@ Base.@kwdef mutable struct Human
     iso::Bool = false # isolation flag
     vaceff1::Float32 = 0.0 
     vaceff2::Float32 = 0.0
-    totalinfect::Int64 = 0 # total number of infections this individual has had
-    timeofinfect::Int64 = 0 # time of infection
-    # eff::Float64 = 0.0 # vaccine efficacy
-    # exp::Int64 = 0 # waning time of vaccine
+    infecttotal::Int64 = 0 # total number of infections this individual has had
+    infectby::Int64 = 0
+    infectgen::Int64 = 0 # generation of the infection
 end
 Base.show(io::IO, ::MIME"text/plain", z::Human) = dump(z)
 
@@ -48,7 +47,7 @@ const HOUSEHOLD_MEMBERS = Dict{Int64,Vector{Int64}}() # key is household ID, val
 const FARM_WORKERS = Dict{Int64,Vector{Int64}}() # key is farm ID, value is vector of human indices in that farm
 const INF_PERIOD = Gamma(3.2949, 2.7314)
 const EXP_PERIOD = Weibull(2.3015, 3.7242) # incubation period
-const MUTATION_INCREMENT = LogNormal(-2.3026, 0.4) # mutation increment distribution 
+const MUTATION_INCREMENT = LogNormal(-2.3752, 0.4) # mutation increment distribution 
 const will_meet = falses(POPSIZE) # array to mark who will meet whom
 
 function init_state()
@@ -259,7 +258,6 @@ function insert_infection(num_of_infections, beta, inftype::INFTYPE)
     for (i, fid) in enumerate(farm)
         idx = rand(FARM_WORKERS[fid]) # sample a random farm worker
         x = humans[idx] # get the human object
-        x.timeofinfect = 1
         x.swap = inftype
         x.beta = beta
         activate_swaps(x) # activate the swap to symptomatic
@@ -279,7 +277,7 @@ function time_loop(;simid=1,
                     vac_cov=0.0,
                     vac_time=42
                     )
-    Random.seed!(simid*293)
+    Random.seed!(simid*531)
     init_model()
     insert_infection(init_inf, beta, SYMP) # insert an infection in the farm
     # data collection variables
@@ -307,16 +305,15 @@ function time_loop(;simid=1,
             init_vac(simid, vac_scn1, vac_scn2, vac_cov)
         end
     end
-
-    # who infect who vector for  R-effective calculation.
-    # who_infect_who = [(x.totalinfect, x.timeofinfect) for x in humans if x.inf == REC]
-    return incidence_hh, incidence_fm, incidence_cm #, who_infect_who
+    maxbeta = maximum(getfield.(humans, :beta)) # get the maximum beta value in the population
+    maxgen = maximum(getfield.(humans, :infectgen)) # get the maximum generation in the population
+    return incidence_hh, incidence_fm, incidence_cm, maxbeta, maxgen
 end
 
 function calibrate(beta; iso_day=-1, iso_prop=0.0) 
     # initialize the model
     init_model()
-    init_infect_id = insert_infection(1, beta, SYMP)[1] # get the first infected individual
+    init_infect_id = insert_infection(1, beta, ASYMP)[1] # get the first infected individual
     x = humans[init_infect_id] # get the infected individual
     max_inf_time = x.st + 1
     total_inf = 0 
@@ -348,7 +345,7 @@ function natural_history(x::Human)
         will_swap = true
         x.inf ∈ (SUS, REC) && error("SUS/REC state can not expire")
         if x.inf == EXP 
-            prob_of_symp = 0.50 * (1.0 - x.vaceff2)
+            prob_of_symp = 0.80 * (1.0 - x.vaceff2)
             if rand() < prob_of_symp
                 x.swap = SYMP # swap to symptomatic
             else
@@ -514,12 +511,13 @@ function check_for_transmission(time, x::Human, y::Human, beta)
     effbeta = effbeta * (1.0 - y.vaceff1) # vaccine efficacy against infection
     if y.inf == SUS && y.swap == UNDEF # if the individual is susceptible
         if rand() < effbeta # check if transmission occurs
-            x.totalinfect += 1 
-            y.timeofinfect = time
+            x.infecttotal += 1 
             # assign beta to the susceptible who jsut got infected
             # don't store effbeta (even for asymptomatic, it's the same virus fitness)
             # check for mutation immediately upon transmission
             y.beta = x.beta 
+            y.infectgen += x.infectgen + 1 # update the generation
+            y.infectby = x.idx
             virus_mutation(y) 
             y.swap = EXP # swap to incubating
             infect = 1
@@ -530,19 +528,31 @@ end
 
 function virus_mutation(x::Human) 
     p_mut = 0.01  # probability of mutation 
-    p_jump = 0.01 # probability of large jump mutation 
-    beta_for_r1 = 0.085 # calibrated beta to R = 1.0, see script.jl,  run_calibration(5000,  0.085, -1, 0.0);
     xbeta = x.beta 
-
+    mut_happened = false
+    # p_jump = 0.0 # probability of large jump mutation, removed after discussion
+    # beta_for_r1 = 0.085 # calibrated beta to R = 1.0, see script.jl,  run_calibration(5000,  0.085, -1, 0.0);
     if rand() < p_mut
         delta = rand(MUTATION_INCREMENT)
-        if rand() < p_jump
-            # jump to a new beta value which forces R > 1.0 (beta_for_r1 is the beta for R = 1)
-            _newbeta = beta_for_r1 * (1 + delta)
-            x.beta = max(xbeta, _newbeta) # incremental small mutations could already bring it above R = 1.0            
-        else
-            x.beta = xbeta * (1 + delta) # regular incremental mutation
-        end
+        x.beta = xbeta * (1 + delta) # regular incremental mutation
+        mut_happened = true
+        # if rand() < p_jump
+        #     # jump to a new beta value which forces R > 1.0 (beta_for_r1 is the beta for R = 1)
+        #     _newbeta = beta_for_r1 * (1 + delta)
+        #     x.beta = max(xbeta, _newbeta) # incremental small mutations could already bring it above R = 1.0                        
+        # end
     end
-    return nothing
+    return mut_happened
+end
+
+function return_transmission_chain(id) 
+    # given a id, see who infected them 
+    x = humans[id] 
+    if x.infectby == 0 
+        return [id] # if no one infected them, return the id
+    else
+        chain = return_transmission_chain(x.infectby) # recursively get the chain
+        push!(chain, id) # add the current id to the chain
+        return chain 
+    end
 end
