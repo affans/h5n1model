@@ -1,13 +1,13 @@
 # ABM for H5N1 Transmission Dynamics
 
-## Requires
+## Environment
 - Julia 1.11.5 
 - Use `Pkg` to `resolve` and `instantiate` the environment in `Project.toml`. 
 
 ## Running the model
-- Start Julia and enable the environment.
+- Start Julia in the supplied environment.
 - Include the model by `include("model.jl")`.
-- The function `time_loop(...)` runs the model (i.e., a single realization) with the supplied parameters. Parameters (with default values) are 
+- The function `time_loop()` runs the model (i.e., a single realization) with the supplied parameters. Parameters (with default values) are 
   ```
     simid=1,     # simulation ID
     beta=0.0,    # probability of transmission 
@@ -23,15 +23,21 @@
 > The function will automatically initialize the model (so no need to run `init_` functions - see below)
 
 > [!NOTE]  
-> The results in the manuscript are based on a `n = 1000` independent runs of `time_loop()` for each scenario (about 500 scenarios). This was done in a parallel fashion on a compute cluster (see `script.jl`). One may also just use a for loop to run 1000 replicates. 
+> The results in the manuscript are based on a `n` independent runs of `time_loop()` for each scenario (see script.jl file). This was done in a parallel fashion on a compute cluster (see `script.jl`). One may also just use a for loop to run n replicates, but this might take some time. Each independent simulation is only a found seconds though. 
 
-- The function `calibrate(...)` is used to calibrate and find the number of secondary infections. The parameters include number of simulations, beta value, and isolation parameters. Calibration involved finding a beta value such that the number of secondary infections equal 1.2, 1.5, and 1.8 (reproduction numbers). Isolation was turned on after calibration to see the reduction in secondary infections due to isolation.
-  > [!NOTE]  
-  > The results in the manuscript are based on a `n = 1000` independent runs of `calibrate` for each scenario. This was done in a parallel fashion on a compute cluster (see `script.jl`). One may also just use a for loop to run 1000 replicates. 
+> [!NOTE] 
+> We provide output of all scenarios and simulations. The data can be found in a related repository found here: 
+[Data Repository](http://github.com/affans/h5n1model_data).
 
-## Components of the model
 
-To test the model's components, one can `include("model.jl")` and start the initialization process. The following initialization functions are needed before the model is run: 
+- The function `calibrate()` is used to calibrate and find the number of secondary infections. The function returns the basic reproduction number. The parameters include number of simulations, beta value, and isolation parameters. Calibration involved finding a beta value such that the number of secondary infections equals some reproduction number. The
+
+> [!NOTE]  
+> In our manuscript, we provide results We have already calibrated the model to a reproduction The beta value `0.017` corresponds to a reproduction number of 0.2.  
+
+## Individual Modules
+
+To test the model's individual modules, one can `include("model.jl")` and start the initialization process. The following initialization functions are needed before the model is run: 
   - `init_state()` initializes the model variables. 
   - `init_agents()` initializes agents and sets up demographics.
   - `init_households2()` initializes household composition and associates agents to each household
@@ -43,7 +49,9 @@ To test the model's components, one can `include("model.jl")` and start the init
 > [!NOTE]  
 > To enable debugging, set up a debug logger `using Logging; debuglogger = ConsoleLogger(stderr, Logging.Debug); global_logger(debuglogger)`
 
-After initialization, an infected person can be introduced by `insert_infection()`. The natural history can be debugged using `natural_history()` and `activate_swaps()` functions (they will require the agent as an input parameter). The function `transmission_with_contacts()` (with agent passed in as the parameter) determines the number of contacts, with who they will contact, and whether disease transmission will occur. 
+After initialization, an infected person can be introduced by `insert_infection()`. The natural history can be debugged using `natural_history()` and `activate_swaps()` functions (they will require the agent as an input parameter). The function `transmission_with_contacts()` (with agent passed in as the parameter) determines the number of contacts, with who they will contact, and whether disease transmission will occur. The function `virus_mutation()` calculates the probability of virus mutation for each agent specifically. 
 
 ## The `script.jl` file
-This file runs the model for specified scenarios (as presented in the table). The model activates a SLURM HPC cluster and submits simulations in a parallel fashion. Results are collected, processed, and saved to disk. It's unlikely that `script.jl` can be used directly for reproducing the results.
+
+The `script.jl` file is an internal file not required for the model. It was used to calibrate the model, set up the scenarios described in the paper,  activates a SLURM HPC cluster, and submits simulations in a parallel fashion. Results are collected, processed, and saved to disk for further analysis. The file is provided as a template for parallel simulations and processing of simulation data. 
+
