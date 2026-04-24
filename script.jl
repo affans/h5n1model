@@ -172,10 +172,10 @@ end
 function run_incidence_scenarios(nsims)
     # scenario combinations
     beta_values = ((02, 0.017),) # (R, beta)
-    vaxtypes = (A1, A2, A3) # see model.jl for A* defns
+    vaxtypes = (A3, ) #(A1, A2, A3) # see model.jl for A* defns
     init_infections = (1, )
-    iso_day = (1, 2)#(2, 3) # isolation day, 2 means on-set of symptomatic
-    vac_time = (1, 42)#(1, 42) # vaccination time, 42 days after the start of the simulation
+    iso_day = (1, 2) #(2, 3) # isolation day, 2 means on-set of symptomatic
+    vac_time = (14, ) #(1, 42) # vaccination time, 42 days after the start of the simulation
 
     # scenarios within each file 
     iso_props = 0.5:0.1:0.8

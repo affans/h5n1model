@@ -345,11 +345,11 @@ function natural_history(x::Human)
         will_swap = true
         x.inf ∈ (SUS, REC) && error("SUS/REC state can not expire")
         if x.inf == EXP 
-            prob_of_symp = 0.80 * (1.0 - x.vaceff2)
+            prob_of_symp = 0.50 * (1.0 - x.vaceff2)
             if rand() < prob_of_symp
                 x.swap = SYMP # swap to symptomatic
             else
-                x.swap = ASYMP # 3% of incubating individuals become asymptomatic
+                x.swap = ASYMP
             end
         end
         if x.inf ∈ (SYMP, ASYMP) # symptomatic or asymptomatic
@@ -400,11 +400,11 @@ function init_vac(simid, scn1::VACSCN1, scn2::VACSCN2, coverage)
         eff1 = 0.50 # 50% protection against infection
         eff2 = 0.0 # no additional protection for symptomatic disease
     elseif scn2 == A2
-        eff1 = 0.0 # 50% protection against infection
-        eff2 = 0.85 # 50% additional protection for symptomatic disease
+        eff1 = 0.0 # no protection against infection
+        eff2 = 0.85 # 85% additional protection for symptomatic disease
     elseif scn2 == A3
-        eff1 = 0.50 # no protection against infection
-        eff2 = 0.85 # 50% additional protection for symptomatic disease
+        eff1 = 0.50 # 50% protection against infection
+        eff2 = 0.85 # 85% additional protection for symptomatic disease
     end
     cnt = 0 # count of vaccinated individuals
     (scn1 == NONE || scn2 == A0) && return cnt # if no vaccination scenario, return 0

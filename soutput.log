@@ -1,0 +1,366 @@
+[ Info: starting script, non interactive use - sbatch
+[ Info: @__DIR__: /var/lib/slurm/slurmd/job01338
+[ Info: current working directory: /home/odinuser02/h5n1model
+  Activating project at `~/h5n1model`
+[ Info: activated project: /home/odinuser02/h5n1model/Project.toml
+┌ Warning: Enabling dry sessions
+└ @ Gnuplot ~/.julia/packages/Gnuplot/lL0gK/src/Gnuplot.jl:86
+[ Info: Hello world - ops01.cs.uregina.ca on process 1
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 1
+[ Info: Running Incidence Scenarios
+[ Info: Total number of files to be generated: 2
+[ Info: Creating folder: ./output/reactive_isoday1
+[ Info: Generating file: r2_A3_i1_vt14_isoday1
+[ Info:    ctr: 1 col 1: (running) baseline scenario
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => -1, 
+│     iso prop => 0.0, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 2 col 2: (running) isoprop: 0.5, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.5, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 3 col 3: (running) isoprop: 0.6, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.6, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 4 col 4: (running) isoprop: 0.7, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.7, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 5 col 5: (running) isoprop: 0.8, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.8, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 6 col 6: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.5, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 7 col 7: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.6, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 8 col 8: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.7, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 9 col 9: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.8, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 10 col 10: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.5, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 11 col 11: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.6, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 12 col 12: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.7, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 13 col 13: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 1, 
+│     iso prop => 0.8, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info: Creating folder: ./output/reactive_isoday2
+[ Info: Generating file: r2_A3_i1_vt14_isoday2
+[ Info:    ctr: 14 col 1: (running) baseline scenario
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => -1, 
+│     iso prop => 0.0, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 15 col 2: (running) isoprop: 0.5, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.5, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 16 col 3: (running) isoprop: 0.6, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.6, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 17 col 4: (running) isoprop: 0.7, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.7, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 18 col 5: (running) isoprop: 0.8, no vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.8, 
+│     vac scenario => NONE, 
+│     vac type => A0, 
+│     vac start => 0,
+└     init infections => 1
+[ Info:    ctr: 19 col 6: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.5, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 20 col 7: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.6, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 21 col 8: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.7, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 22 col 9: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.8, 
+│     vac scenario => FARMONLY, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 23 col 10: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.5, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 24 col 11: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.6, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 25 col 12: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.7, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+[ Info:    ctr: 26 col 13: (running) iso, vax
+┌ Info: starting 1000 simulations with params: 
+│     beta => 0.017, 
+│     iso day => 2, 
+│     iso prop => 0.8, 
+│     vac scenario => FARM_AND_HH, 
+│     vac type => A3, 
+│     vac start => 14,
+└     init infections => 1
+Base.IOError("could not spawn `gnuplot --version`: no such file or directory (ENOENT)", -2)
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 2
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 4
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 11
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 5
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 6
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 8
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 13
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 7
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 3
+[ Info: Hello World from workers on opsco02 with process 14
+[ Info: Hello World from workers on opsco02 with process 15
+[ Info: Hello World from workers on opsco02 with process 10
+[ Info: Hello World from workers on opsco01.cs.uregina.ca with process 19
+[ Info: Hello World from workers on opsco02 with process 9
+[ Info: Hello World from workers on opsco02 with process 12
+[ Info: Hello World from workers on opsco02 with process 18
+[ Info: Hello World from workers on opsco02 with process 16
+[ Info: Hello World from workers on opsco02 with process 17
+[ Info: Hello World from workers on opsc02 with process 20
+[ Info: Hello World from workers on opsc02 with process 85
+[ Info: Hello World from workers on opsc02 with process 26
+[ Info: Hello World from workers on opsc02 with process 24
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 30
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 43
+[ Info: Hello World from workers on ops03 with process 60
+[ Info: Hello World from workers on ops03 with process 80
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 45
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 22
+[ Info: Hello World from workers on ops03 with process 74
+[ Info: Hello World from workers on opsc02 with process 49
+[ Info: Hello World from workers on opsc01 with process 77
+[ Info: Hello World from workers on ops03 with process 66
+[ Info: Hello World from workers on opsc01 with process 46
+[ Info: Hello World from workers on opsc02 with process 71
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 33
+[ Info: Hello World from workers on ops03 with process 42
+[ Info: Hello World from workers on opsc02 with process 25
+[ Info: Hello World from workers on opsc02 with process 23
+[ Info: Hello World from workers on opsc02 with process 39
+[ Info: Hello World from workers on opsc02 with process 21
+[ Info: Hello World from workers on opsc02 with process 31
+[ Info: Hello World from workers on opsc02 with process 27
+[ Info: Hello World from workers on opsc01 with process 67
+[ Info: Hello World from workers on opsc01 with process 78
+[ Info: Hello World from workers on opsc01 with process 70
+[ Info: Hello World from workers on opsc02 with process 28
+[ Info: Hello World from workers on opsc01 with process 65
+[ Info: Hello World from workers on opsc01 with process 47
+[ Info: Hello World from workers on opsc01 with process 90
+[ Info: Hello World from workers on opsc01 with process 29
+[ Info: Hello World from workers on opsc01 with process 91
+[ Info: Hello World from workers on opsc02 with process 38
+[ Info: Hello World from workers on opsc01 with process 83
+[ Info: Hello World from workers on opsc02 with process 34
+[ Info: Hello World from workers on opsc02 with process 53
+[ Info: Hello World from workers on ops02 with process 62
+[ Info: Hello World from workers on ops02 with process 81
+[ Info: Hello World from workers on ops02 with process 59
+[ Info: Hello World from workers on opsc01 with process 73
+[ Info: Hello World from workers on opsc02 with process 55
+[ Info: Hello World from workers on opsc01 with process 86
+[ Info: Hello World from workers on opsc01 with process 44
+[ Info: Hello World from workers on ops03 with process 76
+[ Info: Hello World from workers on ops03 with process 41
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 50
+[ Info: Hello World from workers on opsc02 with process 84
+[ Info: Hello World from workers on ops02 with process 69
+[ Info: Hello World from workers on ops02 with process 88
+[ Info: Hello World from workers on ops02 with process 79
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 54
+[ Info: Hello World from workers on opsc01 with process 40
+[ Info: Hello World from workers on ops03 with process 57
+[ Info: Hello World from workers on ops03 with process 51
+[ Info: Hello World from workers on ops02 with process 82
+[ Info: Hello World from workers on ops02 with process 87
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 56
+[ Info: Hello World from workers on ops03 with process 37
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 63
+[ Info: Hello World from workers on ops02 with process 72
+[ Info: Hello World from workers on ops02 with process 68
+[ Info: Hello World from workers on ops03 with process 48
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 36
+[ Info: Hello World from workers on ops02 with process 89
+[ Info: Hello World from workers on ops02 with process 75
+[ Info: Hello World from workers on ops03 with process 61
+[ Info: Hello World from workers on opsc01 with process 58
+[ Info: Hello World from workers on opsc01 with process 35
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 64
+[ Info: Hello World from workers on opsc01 with process 52
+[ Info: Hello World from workers on ops01.cs.uregina.ca with process 32
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
+sizeof: 0.04 MB, summarysize: 8.92004 MB
